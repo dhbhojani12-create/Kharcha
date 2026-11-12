@@ -41,12 +41,21 @@ public class PayReader extends AccessibilityService {
     static long lastSigTs = 0;
     long lastScan = 0;
 
+    static double waitAmt = 0;
+    static long waitSince = 0;
+    final Runnable rescan = this::scan;
+
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {
+        long now = System.currentTimeMillis();
+        if (now - lastScan < 300) return;
+        lastScan = now;
+        scan();
+    }
+
+    void scan() {
         try {
             long now = System.currentTimeMillis();
-            if (now - lastScan < 350) return;
-            lastScan = now;
             AccessibilityNodeInfo root = getRootInActiveWindow();
             if (root == null) return;
             String pkg = root.getPackageName() == null ? "" : root.getPackageName().toString();
@@ -70,6 +79,17 @@ public class PayReader extends AccessibilityService {
             if (amt <= 0 || count > 3) return;   // history lists have many amounts – ignore them
 
             String payee = findPayee(lines);
+            boolean hasUpiId = all.contains("@");
+            // The name card animates in after "₹ Sent" – wait up to 2.5 s for it.
+            if (payee.isEmpty() || !hasUpiId) {
+                if (Math.abs(amt - waitAmt) > 0.001 || now - waitSince > 8000) { waitAmt = amt; waitSince = now; }
+                if (now - waitSince < 2500) {
+                    Capture.H.removeCallbacks(rescan);
+                    Capture.H.postDelayed(rescan, 400);
+                    return;
+                }
+            }
+            Capture.H.removeCallbacks(rescan);
             String sig = Parse.fmt(amt) + "|" + Parse.key(payee);
             if (sig.equals(lastSig) && now - lastSigTs < 5 * 60 * 1000) return;
             lastSig = sig;
