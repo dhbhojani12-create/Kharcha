@@ -126,11 +126,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (web != null) web.evaluateJavascript("window.kharchaPoll&&kharchaPoll()", null);
-        try {
-            String f = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
-            if (f != null && f.contains(getPackageName()))
-                NotificationListenerService.requestRebind(new ComponentName(this, PayListener.class));
-        } catch (Exception ignored) { }
+
     }
 
     void handle(Intent i, boolean first) {
@@ -279,7 +275,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String version() {
-            return "4";
+            return "5";
         }
 
         @JavascriptInterface

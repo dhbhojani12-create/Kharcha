@@ -24,6 +24,7 @@ public class PayReader extends AccessibilityService {
     static final Pattern BAD = Pattern.compile(
             "\\b(failed|pending|declined|processing|enter amount|enter upi pin|insufficient|cancelled|canceled)\\b",
             Pattern.CASE_INSENSITIVE);
+    static final Pattern DATETIME = Pattern.compile("\\d{1,2}\\s+[A-Za-z]{3,9},?\\s+\\d{4},?\\s+\\d{1,2}:\\d{2}(\\s*[AaPp][Mm])?");
     static final Pattern AMT = Pattern.compile("₹\\s*([\\d,]+(?:\\.\\d{1,2})?)");
     static final Pattern NAME = Pattern.compile("^[A-Za-z][A-Za-z .&'-]{2,45}$");
     static final Pattern BANKISH = Pattern.compile("\\b(bank|banking|ltd|limited|upi lite|wallet|account|a/c|savings)\\b", Pattern.CASE_INSENSITIVE);
@@ -90,8 +91,10 @@ public class PayReader extends AccessibilityService {
                 }
             }
             Capture.H.removeCallbacks(rescan);
-            String sig = Parse.fmt(amt) + "|" + Parse.key(payee);
-            if (sig.equals(lastSig) && now - lastSigTs < 5 * 60 * 1000) return;
+            Matcher dt = DATETIME.matcher(all);
+            String when = dt.find() ? dt.group() : "";
+            String sig = Parse.fmt(amt) + "|" + Parse.key(payee) + "|" + when;
+            if (sig.equals(lastSig) && (!when.isEmpty() || now - lastSigTs < 60 * 1000)) return;
             lastSig = sig;
             lastSigTs = now;
 
@@ -109,7 +112,8 @@ public class PayReader extends AccessibilityService {
         CharSequence t = n.getText();
         if (t == null || t.length() == 0) t = n.getContentDescription();
         if (t != null) {
-            String s = t.toString().trim();
+            // drop icons/invisible symbols (e.g. the verified tick after the name)
+            String s = t.toString().replaceAll("[^\\p{L}\\p{N}₹ .,:&'@*/()-]", " ").replaceAll("\\s+", " ").trim();
             if (!s.isEmpty()) out.add(s);
         }
         for (int i = 0; i < n.getChildCount(); i++) collect(n.getChild(i), out, depth + 1);
