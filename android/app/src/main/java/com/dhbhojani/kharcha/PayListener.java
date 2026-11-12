@@ -41,9 +41,9 @@ public class PayListener extends NotificationListenerService {
             "com.google.android.apps.messaging",
             "com.samsung.android.messaging"));
 
-    static final Pattern MONEY = Pattern.compile("(₹|\\brs\\.?|\\binr)\\s*[\\d,]+", Pattern.CASE_INSENSITIVE);
-    static final Pattern OUT = Pattern.compile("\\b(paid|sent|debited|payment|transferred|successful|spent|debit)\\b", Pattern.CASE_INSENSITIVE);
-    static final Pattern NOT = Pattern.compile("\\b(received|credited|cashback|offer|reward|requested|request|due|win|won|remind|reminder|scratch|coupon|refund|refunded|failed|declined|otp|expires|expiring|limit|loan|emi due)\\b", Pattern.CASE_INSENSITIVE);
+    static final Pattern MONEY = Pattern.compile("((₹|\\brs\\.?|\\binr)\\s*[\\d,]+)|((debited|paid|sent|spent|transferred)\\s+(by|for|of|with)?\\s*[\\d,]+(\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
+    static final Pattern OUT = Pattern.compile("\\b(paid|sent|debited|payment|transferred|successful|spent|debit|trf|txn)\\b", Pattern.CASE_INSENSITIVE);
+    static final Pattern NOT = Pattern.compile("\\b(received|credited|cashback|offer|reward|requested|request|due|win|won|remind|reminder|scratch|coupon|refund|refunded|failed|declined|otp|expires|expiring|loan|emi due)\\b", Pattern.CASE_INSENSITIVE);
 
     static String last = "";
     static long lastTs = 0;
@@ -54,15 +54,25 @@ public class PayListener extends NotificationListenerService {
             String pkg = sbn.getPackageName();
             boolean sms = SMS_APPS.contains(pkg)
                     && getSharedPreferences("k", MODE_PRIVATE).getBoolean("sms", false);
-            if (!PAY_APPS.contains(pkg) && !sms) return;
+            if (pkg.equals(getPackageName())) return;
             Notification n = sbn.getNotification();
-            if ((n.flags & Notification.FLAG_GROUP_SUMMARY) != 0) return;
             Bundle x = n.extras;
             String title = str(x.getCharSequence(Notification.EXTRA_TITLE));
             String text = str(x.getCharSequence(Notification.EXTRA_BIG_TEXT));
             if (text.isEmpty()) text = str(x.getCharSequence(Notification.EXTRA_TEXT));
             String all = (title + "\n" + text).trim();
-            if (!MONEY.matcher(all).find() || !OUT.matcher(all).find() || NOT.matcher(all).find()) return;
+            boolean watched = PAY_APPS.contains(pkg) || SMS_APPS.contains(pkg);
+            boolean money = MONEY.matcher(all).find();
+            String why;
+            if (!watched && !money) return;            // ignore unrelated apps entirely
+            if (!PAY_APPS.contains(pkg) && !sms) why = SMS_APPS.contains(pkg) ? "SMS reading is OFF" : "app not in list";
+            else if ((n.flags & Notification.FLAG_GROUP_SUMMARY) != 0) why = "summary";
+            else if (!money) why = "no amount";
+            else if (!OUT.matcher(all).find()) why = "not a payment";
+            else if (NOT.matcher(all).find()) why = "looks like offer/credit/OTP";
+            else why = "CAPTURED";
+            log(this, pkg, all, why);
+            if (!"CAPTURED".equals(why)) return;
             long now = System.currentTimeMillis();
             if (all.equals(last) && now - lastTs < 10 * 60 * 1000) return;
             last = all;
@@ -71,6 +81,25 @@ public class PayListener extends NotificationListenerService {
             notifyUser(all);
         } catch (Exception ignored) {
         }
+    }
+
+    @Override
+    public void onListenerConnected() {
+        getSharedPreferences("k", MODE_PRIVATE).edit().putLong("conn", System.currentTimeMillis()).apply();
+    }
+
+    static synchronized void log(Context c, String pkg, String t, String why) {
+        SharedPreferences p = c.getSharedPreferences("k", MODE_PRIVATE);
+        JSONArray a;
+        try { a = new JSONArray(p.getString("log", "[]")); } catch (Exception e) { a = new JSONArray(); }
+        JSONArray b = new JSONArray();
+        try {
+            JSONObject o = new JSONObject();
+            o.put("pkg", pkg); o.put("t", t.length() > 160 ? t.substring(0, 160) : t); o.put("why", why); o.put("ts", System.currentTimeMillis());
+            b.put(o);
+            for (int i = 0; i < a.length() && i < 24; i++) b.put(a.get(i));
+        } catch (Exception ignored) { }
+        p.edit().putString("log", b.toString()).apply();
     }
 
     static String str(CharSequence c) {

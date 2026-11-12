@@ -259,7 +259,24 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String version() {
-            return "1";
+            return "2";
+        }
+
+        @JavascriptInterface
+        public String getLog() {
+            return getSharedPreferences("k", MODE_PRIVATE).getString("log", "[]");
+        }
+
+        @JavascriptInterface
+        public long listenerConnectedAt() {
+            return getSharedPreferences("k", MODE_PRIVATE).getLong("conn", 0);
+        }
+
+        @JavascriptInterface
+        public void openAppInfo() {
+            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            runOnUiThread(() -> startActivity(i));
         }
     }
 }

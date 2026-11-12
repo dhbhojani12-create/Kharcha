@@ -449,7 +449,7 @@ function vMore(){
   view.innerHTML=`${APP?`<div class="card"><h4>🔔 Auto-capture payments</h4><p class="small muted" style="margin-top:0">Kharcha reads the “paid ₹…” notification from GPay / PhonePe / Samsung Wallet / bank apps and asks you only for the category.</p>
   <p style="margin:6px 0"><b>${APP.hasNotifAccess()?'✅ ON':'❌ OFF – tap below and turn on Kharcha'}</b></p>
   <button class="btn ${APP.hasNotifAccess()?'ghost':'pri big'}" id="nAcc">${APP.hasNotifAccess()?'Notification access settings':'Turn on notification access'}</button>
-  <div class="chips" style="margin-top:10px"><button id="smsT" class="${APP.getReadSms()?'on':''}">📩 Also read bank SMS alerts</button></div></div>`:`<div class="card"><h4>🤖 Android app (auto-capture)</h4><p class="small muted" style="margin-top:0">Install the Kharcha Android app to log payments automatically from GPay notifications – no double scanning.</p><a class="btn pri big" href="${APK_URL}" style="text-decoration:none">⬇️ Download Kharcha.apk</a></div>`}
+  <div class="chips" style="margin-top:10px"><button id="smsT" class="${APP.getReadSms()?'on':''}">📩 Also read bank SMS alerts</button></div>${APP.getLog?'<button class="btn ghost" id="diagB">🩺 Check auto-capture</button>':''}</div>`:`<div class="card"><h4>🤖 Android app (auto-capture)</h4><p class="small muted" style="margin-top:0">Install the Kharcha Android app to log payments automatically from GPay notifications – no double scanning.</p><a class="btn pri big" href="${APK_URL}" style="text-decoration:none">⬇️ Download Kharcha.apk</a></div>`}
   <div class="card"><h4>📲 Install on your phone</h4><p class="small muted" style="margin:0">In Chrome tap <b>⋮ → Add to Home screen / Install app</b>. Then <b>long-press the Kharcha icon</b> for a direct “Pay” shortcut.</p></div>
   <div class="card"><h4>💳 Payment app</h4><p class="small muted" style="margin-top:0">The app Kharcha opens when you tap Pay.</p><div class="chips" id="payApp">${PAY_APPS.map(([k,n])=>`<button data-p="${k}" class="${k===payPkg()?'on':''}">${n}</button>`).join('')}</div><button class="btn ghost" id="tLaunch">🔧 Test opening the app</button></div>
   <div class="card"><h4>🏷️ Categories</h4>${S.cats.map(c=>`<div class="catrow"><div class="ico" style="background:${c.color}22">${c.emoji}</div><span>${esc(c.name)}</span>${c.id==='other'?'':`<button data-del="${c.id}">Remove</button>`}</div>`).join('')}
@@ -462,7 +462,7 @@ function vMore(){
   <p class="small muted" style="text-align:center">Kharcha · works offline · no login, no SMS reading</p>`;
   bindPick($('#payApp'),'data-p',k=>{S.payApp=k;S.launch=null;save();toast(payName()+' selected')});
   $('#tLaunch').onclick=testLaunchSheet;
-  if(APP){$('#nAcc').onclick=()=>APP.openNotifSettings();$('#smsT').onclick=()=>{APP.setReadSms(!APP.getReadSms());render()}}
+  if(APP){$('#nAcc').onclick=()=>APP.openNotifSettings();$('#smsT').onclick=()=>{APP.setReadSms(!APP.getReadSms());render()};const db=$('#diagB');if(db)db.onclick=diagSheet}
   view.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const c=cat(b.dataset.del);const n=S.expenses.filter(e=>e.cat===c.id).length;if(!confirm(`Remove “${c.name}”?`+(n?` ${n} expenses will move to Other.`:'')))return;S.expenses.forEach(e=>{if(e.cat===c.id)e.cat='other'});S.cats=S.cats.filter(x=>x.id!==c.id);Object.keys(S.rules).forEach(k=>{if(S.rules[k]===c.id)delete S.rules[k]});save();render()});
   $('#nAdd').onclick=()=>{const nm=$('#nName').value.trim();if(!nm)return toast('Type a name');const col=['#0ea5e9','#f97316','#22c55e','#a855f7','#ec4899','#eab308','#14b8a6'][S.cats.length%7];S.cats.splice(S.cats.length-1,0,{id:'c'+uid(),name:nm,emoji:$('#nEmoji').value.trim()||'🏷️',color:col});save();render();toast('Category added')};
   $('#xAll').onclick=()=>okEx().length?exportXlsx(okEx(),'Kharcha-all'):toast('Nothing to export yet');
@@ -476,9 +476,10 @@ function parseNotif(t){
   t=String(t||'').replace(/ /g,' ');
   let amt=0,m=t.match(/(?:₹|rs\.?|inr)\s*([\d,]+(?:\.\d{1,2})?)/i);
   if(m)amt=parseAmt(m[1]);
+  if(!amt){const k=t.match(/(?:debited|paid|sent|spent|transferred)\s+(?:by|for|of|with)?\s*(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d{1,2})?)/i);if(k)amt=parseAmt(k[1])}
   if(!amt){const lines=t.split(/\n/).map(s=>s.trim());for(const l of lines){const k=l.match(/^[₹%zZxX¥]?\s?([\d,]{1,9}(?:\.\d{1,2})?)$/);if(k&&parseAmt(k[1])>0){amt=parseAmt(k[1]);break}}}
   let payee='';
-  const p=t.match(/(?:paid to|sent to|payment to|to)\s*[:\n]?\s*([A-Za-z][A-Za-z0-9 .&'@-]{1,40}?)(?=\s+(?:on|via|using|from|ref|upi|successfully|is|was|for|with)\b|[.,!\n]|$)/i);
+  const p=t.match(/(?:paid to|sent to|payment to|to)\s*[:\n]?\s*([A-Za-z][A-Za-z0-9 .&'@-]{1,40}?)(?=\s+(?:on|via|using|from|ref|refno|ref\.?no|upi|successfully|is|was|for|with|a\/c|if|not)\b|[.,!\n]|$)/i);
   if(p)payee=p[1].trim();
   return{amt,payee};
 }
@@ -488,6 +489,19 @@ function logFromText(t,src,ts){
   const dup=S.expenses.find(e=>Math.abs(e.amt-amt)<0.5&&Math.abs((ts||Date.now())-e.ts)<6*60*1000);
   if(dup){toast('Already logged – opening it');dup.status==='pending'?confirmSheet(dup):addSheet(dup);return}
   addSheet({amt,payee,cat:suggest(payee),mode:'UPI',ts:ts||Date.now(),src});
+}
+const PKGN={'com.google.android.apps.nbu.paisa.user':'Google Pay','com.phonepe.app':'PhonePe','net.one97.paytm':'Paytm','com.samsung.android.spay':'Samsung Wallet','in.org.npci.upiapp':'BHIM','com.google.android.apps.messaging':'Messages (SMS)','com.samsung.android.messaging':'Samsung Messages (SMS)'};
+function diagSheet(){
+  const on=APP.hasNotifAccess(),c=APP.listenerConnectedAt?APP.listenerConnectedAt():0;let log=[];try{log=JSON.parse(APP.getLog())}catch(e){}
+  openSheet(`<h3>🩺 Auto-capture check</h3>
+  <div class="card" style="margin:6px 0"><div>1. Notification access: <b>${on?'✅ ON':'❌ OFF'}</b></div><div>2. Reader running: <b>${c?'✅ since '+dayLabel(c)+' '+tm(c):'❌ not started'}</b></div><div>3. SMS alerts: <b>${APP.getReadSms()?'✅ ON':'OFF'}</b></div></div>
+  ${on?'':`<div class="warn" style="cursor:default">If the Kharcha switch is <b>greyed out</b> (“Restricted setting”): tap <b>App info</b> below → <b>⋮</b> (top-right) → <b>Allow restricted settings</b> → then turn access on.</div><button class="btn pri big" id="dAcc">Turn on notification access</button><button class="btn ghost" id="dInfo">App info (for restricted setting)</button>`}
+  ${on&&!c?`<p class="small muted">Access is on but the reader hasn't started – turn the Kharcha switch OFF and ON again, or restart the phone.</p><button class="btn ghost" id="dAcc">Open notification access</button>`:''}
+  <h4 style="margin:14px 0 4px">Money notifications seen (latest first)</h4>
+  ${log.length?log.map(l=>`<div class="mitem"><div class="top"><b>${esc(PKGN[l.pkg]||l.pkg)}</b><span class="small" style="color:${l.why==='CAPTURED'?'var(--pri)':'#b45309'};font-weight:700">${esc(l.why)}</span></div><div class="small muted">${dayLabel(l.ts)} ${tm(l.ts)}</div><div class="small" style="word-break:break-word">${esc(l.t)}</div></div>`).join(''):`<p class="small muted">Nothing seen yet. Make a ₹1 payment, then open this again.<br>If it stays empty, your payment app does <b>not</b> show a notification after paying – turn on <b>📩 Also read bank SMS alerts</b>.</p>`}
+  <button class="btn ghost" id="dRef">↻ Refresh</button>`,sh=>{
+    sh.querySelectorAll('#dAcc').forEach(b=>b.onclick=()=>APP.openNotifSettings());const i=sh.querySelector('#dInfo');if(i)i.onclick=()=>APP.openAppInfo();
+    sh.querySelector('#dRef').onclick=diagSheet;});
 }
 let Q=[];
 function nextQueued(){if(!Q.length||!$('#ov').classList.contains('hidden'))return;const it=Q.shift();logFromText(it.t,'auto',it.ts);if(Q.length)setTimeout(()=>toast(Q.length+' more payment'+(Q.length>1?'s':'')+' to tag'),400)}
