@@ -80,7 +80,7 @@ public class PayListener extends NotificationListenerService {
             // Payment app said "payment complete" but gave no amount (e.g. Samsung Wallet):
             // start a capture now, wait briefly for the bank SMS to supply the amount.
             if (payApp && !summary && !money && OUT.matcher(all).find() && DONE.matcher(all).find() && !NOT.matcher(all).find()) {
-                if (Capture.sameRecent(now, 0, Parse.payee(all))) {
+                if (Capture.screenRecent(now) || Capture.sameRecent(now, 0, Parse.payee(all))) {
                     log(this, pkg, all, "already captured from screen");
                     return;
                 }
@@ -122,7 +122,8 @@ public class PayListener extends NotificationListenerService {
             last = all;
             lastTs = now;
 
-            if (walletText == null && Capture.sameRecent(now, Parse.amount(all), Parse.payee(all))) {
+            if (walletText == null && (Capture.sameRecent(now, Parse.amount(all), Parse.payee(all))
+                    || (Capture.screenRecent(now) && Math.abs(Parse.amount(all) - Capture.lastAmt) < 0.5))) {
                 log(this, pkg, all, Popup.setAmount(Parse.amount(all)) ? "amount added to pop-up" : "already captured");
                 return;
             }

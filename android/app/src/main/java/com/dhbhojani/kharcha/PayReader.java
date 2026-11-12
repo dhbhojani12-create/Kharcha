@@ -26,6 +26,7 @@ public class PayReader extends AccessibilityService {
             Pattern.CASE_INSENSITIVE);
     static final Pattern AMT = Pattern.compile("₹\\s*([\\d,]+(?:\\.\\d{1,2})?)");
     static final Pattern NAME = Pattern.compile("^[A-Za-z][A-Za-z .&'-]{2,45}$");
+    static final Pattern BANKISH = Pattern.compile("\\b(bank|banking|ltd|limited|upi lite|wallet|account|a/c|savings)\\b", Pattern.CASE_INSENSITIVE);
     static final Set<String> STOP = new HashSet<>(Arrays.asList(
             "sent", "paid", "transaction status", "transaction successful", "payment successful", "successful",
             "success", "completed", "complete", "done", "share", "share receipt", "view details", "back", "more",
@@ -76,6 +77,7 @@ public class PayReader extends AccessibilityService {
 
             String txt = "You paid ₹" + Parse.fmt(amt) + (payee.isEmpty() ? "" : " to " + payee) + ".";
             PayListener.log(this, pkg, "Screen: ₹" + Parse.fmt(amt) + (payee.isEmpty() ? "" : " → " + payee), "CAPTURED (screen)");
+            Capture.lastScreenTs = now;
             Capture.go(this, txt, now, true);
         } catch (Exception ignored) {
         }
@@ -97,22 +99,31 @@ public class PayReader extends AccessibilityService {
         if (!NAME.matcher(s).matches()) return false;
         if (STOP.contains(s.toLowerCase())) return false;
         if (s.replaceAll("[^A-Za-z]", "").length() < 3) return false;
+        if (BANKISH.matcher(s).find()) return false;
         return s.split("\\s+").length <= 6;
     }
 
     static String findPayee(List<String> lines) {
         int n = lines.size();
+        // 1) the first real name right after the amount (Samsung: ₹10.00 / Sent / B / NAME)
+        int amtLine = -1;
+        for (int i = 0; i < n; i++) if (lines.get(i).contains("₹")) { amtLine = i; break; }
+        if (amtLine >= 0)
+            for (int i = amtLine + 1; i < Math.min(n, amtLine + 6); i++) {
+                String l = lines.get(i).trim();
+                String low = l.toLowerCase();
+                if ((low.startsWith("paid to ") || low.startsWith("sent to ")) && isName(l.substring(8))) return l.substring(8).trim();
+                if (isName(l)) return l;
+            }
+        // 2) "Paid to" / "To" labels
         for (int i = 0; i < n; i++) {
             String l = lines.get(i).trim();
             String low = l.toLowerCase();
             if ((low.startsWith("paid to ") || low.startsWith("sent to ")) && isName(l.substring(8))) return l.substring(8).trim();
-            if (low.startsWith("to ") && isName(l.substring(3))) return l.substring(3).trim();
-            if ((low.equals("to") || low.equals("paid to") || low.equals("sent to")) && i + 1 < n && isName(lines.get(i + 1)))
+            if ((low.equals("paid to") || low.equals("sent to") || low.equals("to")) && i + 1 < n && isName(lines.get(i + 1)))
                 return lines.get(i + 1).trim();
         }
-        int amtLine = -1;
-        for (int i = 0; i < n; i++) if (lines.get(i).contains("₹")) { amtLine = i; break; }
-        for (int i = Math.max(0, amtLine + 1); i < n; i++) if (isName(lines.get(i))) return lines.get(i).trim();
+        // 3) any name on screen
         for (int i = 0; i < n; i++) if (isName(lines.get(i))) return lines.get(i).trim();
         return "";
     }

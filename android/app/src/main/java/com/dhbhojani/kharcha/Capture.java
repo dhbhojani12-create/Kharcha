@@ -12,6 +12,12 @@ public class Capture {
     static long lastTs = 0;
     static String lastKey = "";
     static double lastAmt = 0;
+    static long lastScreenTs = 0;
+
+    /** The success screen was read recently – notifications/SMS for it are duplicates. */
+    static boolean screenRecent(long now) {
+        return now - lastScreenTs < 3 * 60 * 1000;
+    }
 
     /** A capture of the same payment happened recently (screen + notification + SMS all describe one payment). */
     static boolean sameRecent(long now, double amt, String payee) {
