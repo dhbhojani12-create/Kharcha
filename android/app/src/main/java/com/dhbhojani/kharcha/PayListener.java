@@ -49,6 +49,13 @@ public class PayListener extends NotificationListenerService {
     static final Pattern OUT = Pattern.compile("\\b(paid|sent|debited|payment|transferred|successful|spent|debit|trf|txn)\\b", Pattern.CASE_INSENSITIVE);
     static final Pattern NOT = Pattern.compile("\\b(received|credited|cashback|offer|reward|requested|request|due|win|won|remind|reminder|scratch|coupon|refund|refunded|failed|declined|otp|expires|expiring|loan|emi due)\\b", Pattern.CASE_INSENSITIVE);
 
+    static final Pattern DONE = Pattern.compile("\\b(complete|completed|successful|success|done)\\b", Pattern.CASE_INSENSITIVE);
+    static final Handler H = new Handler(Looper.getMainLooper());
+    static String walletText = null;
+    static long walletTs = 0;
+    static boolean walletShown = false;
+    static Runnable walletRun = null;
+
     static String last = "";
     static long lastTs = 0;
 
@@ -56,8 +63,6 @@ public class PayListener extends NotificationListenerService {
     public void onNotificationPosted(StatusBarNotification sbn) {
         try {
             String pkg = sbn.getPackageName();
-            boolean sms = SMS_APPS.contains(pkg)
-                    && getSharedPreferences("k", MODE_PRIVATE).getBoolean("sms", false);
             if (pkg.equals(getPackageName())) return;
             Notification n = sbn.getNotification();
             Bundle x = n.extras;
@@ -65,32 +70,72 @@ public class PayListener extends NotificationListenerService {
             String text = str(x.getCharSequence(Notification.EXTRA_BIG_TEXT));
             if (text.isEmpty()) text = str(x.getCharSequence(Notification.EXTRA_TEXT));
             String all = (title + "\n" + text).trim();
-            boolean watched = PAY_APPS.contains(pkg) || SMS_APPS.contains(pkg);
+            boolean payApp = PAY_APPS.contains(pkg);
+            boolean watched = payApp || SMS_APPS.contains(pkg);
             boolean money = MONEY.matcher(all).find();
-            String why;
             if (!watched && !money) return;            // ignore unrelated apps entirely
-            if (!PAY_APPS.contains(pkg) && !sms) why = SMS_APPS.contains(pkg) ? "SMS reading is OFF" : "app not in list";
-            else if ((n.flags & Notification.FLAG_GROUP_SUMMARY) != 0) why = "summary";
+            boolean summary = (n.flags & Notification.FLAG_GROUP_SUMMARY) != 0;
+            long now = System.currentTimeMillis();
+
+            // Payment app said "payment complete" but gave no amount (e.g. Samsung Wallet):
+            // start a capture now, wait briefly for the bank SMS to supply the amount.
+            if (payApp && !summary && !money && OUT.matcher(all).find() && DONE.matcher(all).find() && !NOT.matcher(all).find()) {
+                if (walletText != null && now - walletTs < 90 * 1000
+                        && Parse.key(Parse.payee(all)).equals(Parse.key(Parse.payee(walletText)))) {
+                    log(this, pkg, all, "duplicate");
+                    return;
+                }
+                if (walletRun != null) H.removeCallbacks(walletRun);
+                walletText = all;
+                walletTs = now;
+                walletShown = false;
+                log(this, pkg, all, "CAPTURED – waiting for amount");
+                walletRun = () -> {
+                    walletShown = true;
+                    capture(walletText, walletTs);
+                };
+                H.postDelayed(walletRun, 25 * 1000);
+                return;
+            }
+
+            boolean sms = SMS_APPS.contains(pkg)
+                    && getSharedPreferences("k", MODE_PRIVATE).getBoolean("sms", false);
+            String why;
+            if (!payApp && !sms) why = SMS_APPS.contains(pkg) ? "SMS reading is OFF" : "app not in list";
+            else if (summary) why = "summary";
             else if (!money) why = "no amount";
             else if (!OUT.matcher(all).find()) why = "not a payment";
             else if (NOT.matcher(all).find()) why = "looks like offer/credit/OTP";
             else why = "CAPTURED";
-            log(this, pkg, all, why);
-            if (!"CAPTURED".equals(why)) return;
-            long now = System.currentTimeMillis();
-            if (all.equals(last) && now - lastTs < 10 * 60 * 1000) return;
+            if (!"CAPTURED".equals(why)) {
+                log(this, pkg, all, why);
+                return;
+            }
+            if (all.equals(last) && now - lastTs < 10 * 60 * 1000) {
+                log(this, pkg, all, "duplicate");
+                return;
+            }
             last = all;
             lastTs = now;
-            add(this, all, now);
-            final String txt = all;
-            if (Settings.canDrawOverlays(this)) {
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    try { Popup.show(PayListener.this, txt, now, () -> notifyUser(txt)); }
-                    catch (Exception e) { notifyUser(txt); }
-                });
-            } else {
-                notifyUser(all);
+
+            // Amount arrived for a recent "payment complete" from the wallet app → merge.
+            if (walletText != null && now - walletTs < 3 * 60 * 1000) {
+                double a = Parse.amount(all);
+                if (!walletShown) {
+                    H.removeCallbacks(walletRun);
+                    walletShown = true;
+                    log(this, pkg, all, "CAPTURED – amount added");
+                    capture(walletText + "\n" + all, walletTs);
+                } else if (Popup.setAmount(a)) {
+                    log(this, pkg, all, "amount added to pop-up");
+                } else {
+                    log(this, pkg, all, "already captured from wallet");
+                }
+                walletText = null;
+                return;
             }
+            log(this, pkg, all, "CAPTURED");
+            capture(all, now);
         } catch (Exception ignored) {
         }
     }
@@ -117,6 +162,18 @@ public class PayListener extends NotificationListenerService {
             for (int i = 0; i < a.length() && i < 24; i++) b.put(a.get(i));
         } catch (Exception ignored) { }
         p.edit().putString("log", b.toString()).apply();
+    }
+
+    void capture(String txt, long ts) {
+        add(this, txt, ts);
+        if (Settings.canDrawOverlays(this)) {
+            H.post(() -> {
+                try { Popup.show(PayListener.this, txt, ts, () -> notifyUser(txt)); }
+                catch (Exception e) { notifyUser(txt); }
+            });
+        } else {
+            notifyUser(txt);
+        }
     }
 
     static String str(CharSequence c) {

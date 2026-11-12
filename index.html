@@ -462,7 +462,7 @@ function vMore(){
   <button class="btn ghost" id="bk">💾 Backup (file)</button>
   <label class="btn ghost">♻️ Restore from backup<input type="file" accept=".json,application/json" id="rs" hidden></label>
   <button class="btn ghost" id="wipe" style="color:var(--red)">🗑️ Erase all data</button></div>
-  <p class="small muted" style="text-align:center">Kharcha web v7 · works offline · no login</p>`;
+  <p class="small muted" style="text-align:center">Kharcha web v8 · works offline · no login</p>`;
   bindPick($('#payApp'),'data-p',k=>{S.payApp=k;S.launch=null;save();toast(payName()+' selected')});
   $('#tLaunch').onclick=testLaunchSheet;
   if(APP){$('#nAcc').onclick=()=>APP.openNotifSettings();$('#smsT').onclick=()=>{APP.setReadSms(!APP.getReadSms());render()};const db=$('#diagB');if(db)db.onclick=diagSheet;const ob=$('#ovB');if(ob)ob.onclick=()=>APP.openOverlaySettings();const tp=$('#tPop');if(tp)tp.onclick=()=>APP.testPopup()}
@@ -488,7 +488,7 @@ function parseNotif(t){
 }
 function logFromText(t,src,ts){
   const{amt,payee}=parseNotif(t);
-  if(!amt){addSheet({note:String(t||'').slice(0,60),src});toast('Could not read the amount – please type it');return}
+  if(!amt){addSheet({payee,cat:suggest(payee),mode:'UPI',ts:ts||Date.now(),src});toast('Type the amount');return}
   const dup=S.expenses.find(e=>Math.abs(e.amt-amt)<0.5&&Math.abs((ts||Date.now())-e.ts)<6*60*1000);
   if(dup){toast('Already logged – opening it');dup.status==='pending'?confirmSheet(dup):addSheet(dup);return}
   addSheet({amt,payee,cat:suggest(payee),mode:'UPI',ts:ts||Date.now(),src});

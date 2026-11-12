@@ -26,6 +26,7 @@ public class Popup {
     static final String DEFAULT_CATS = "[{\"id\":\"food\",\"name\":\"Food\",\"emoji\":\"🍔\"},{\"id\":\"groc\",\"name\":\"Groceries\",\"emoji\":\"🛒\"},{\"id\":\"travel\",\"name\":\"Travel\",\"emoji\":\"🚕\"},{\"id\":\"shop\",\"name\":\"Shopping\",\"emoji\":\"🛍️\"},{\"id\":\"bills\",\"name\":\"Bills\",\"emoji\":\"💡\"},{\"id\":\"study\",\"name\":\"Study\",\"emoji\":\"📚\"},{\"id\":\"health\",\"name\":\"Health\",\"emoji\":\"💊\"},{\"id\":\"fun\",\"name\":\"Fun\",\"emoji\":\"🎬\"},{\"id\":\"friends\",\"name\":\"Friends\",\"emoji\":\"🤝\"},{\"id\":\"home\",\"name\":\"Home\",\"emoji\":\"🏠\"},{\"id\":\"gift\",\"name\":\"Gifts\",\"emoji\":\"🎁\"},{\"id\":\"other\",\"name\":\"Other\",\"emoji\":\"📦\"}]";
     static final int TEAL = Color.parseColor("#0F766E");
     static View showing;
+    static EditText curAmt;
 
     interface OnLater { void later(); }
 
@@ -91,6 +92,7 @@ public class Popup {
         amtE.setBackground(null);
         amtE.setPadding(dp(c, 4), 0, 0, 0);
         amtRow.addView(amtE, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        curAmt = amtE;
         card.addView(amtRow);
 
         EditText payeeE = new EditText(c);
@@ -188,9 +190,15 @@ public class Popup {
         showing = root;
     }
 
+    static boolean setAmount(double a) {
+        if (showing == null || curAmt == null || a <= 0) return false;
+        if (Parse.num(curAmt.getText().toString()) <= 0) curAmt.setText(Parse.fmt(a));
+        return true;
+    }
+
     static void close(WindowManager wm, View v) {
         try { wm.removeView(v); } catch (Exception ignored) { }
-        if (showing == v) showing = null;
+        if (showing == v) { showing = null; curAmt = null; }
     }
 
     static void paint(Context c, TextView t, boolean on) {
