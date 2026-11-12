@@ -459,7 +459,7 @@ function vMore(){
   <button class="btn ghost" id="bk">💾 Backup (file)</button>
   <label class="btn ghost">♻️ Restore from backup<input type="file" accept=".json,application/json" id="rs" hidden></label>
   <button class="btn ghost" id="wipe" style="color:var(--red)">🗑️ Erase all data</button></div>
-  <p class="small muted" style="text-align:center">Kharcha · works offline · no login, no SMS reading</p>`;
+  <p class="small muted" style="text-align:center">Kharcha web v6 · works offline · no login</p>`;
   bindPick($('#payApp'),'data-p',k=>{S.payApp=k;S.launch=null;save();toast(payName()+' selected')});
   $('#tLaunch').onclick=testLaunchSheet;
   if(APP){$('#nAcc').onclick=()=>APP.openNotifSettings();$('#smsT').onclick=()=>{APP.setReadSms(!APP.getReadSms());render()};const db=$('#diagB');if(db)db.onclick=diagSheet}
@@ -479,7 +479,7 @@ function parseNotif(t){
   if(!amt){const k=t.match(/(?:debited|paid|sent|spent|transferred)\s+(?:by|for|of|with)?\s*(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d{1,2})?)/i);if(k)amt=parseAmt(k[1])}
   if(!amt){const lines=t.split(/\n/).map(s=>s.trim());for(const l of lines){const k=l.match(/^[₹%zZxX¥]?\s?([\d,]{1,9}(?:\.\d{1,2})?)$/);if(k&&parseAmt(k[1])>0){amt=parseAmt(k[1]);break}}}
   let payee='';
-  const p=t.match(/(?:paid to|sent to|payment to|to)\s*[:\n]?\s*([A-Za-z][A-Za-z0-9 .&'@-]{1,40}?)(?=\s+(?:on|via|using|from|ref|refno|ref\.?no|upi|successfully|is|was|for|with|a\/c|if|not)\b|[.,!\n]|$)/i);
+  const p=t.match(/(?:paid to|sent to|payment to|to)\s*[:\n]?\s*([A-Za-z][A-Za-z0-9 .&'@-]{1,40}?)(?=\s+(?:on|via|using|from|ref|refno|ref\.?no|re-?f\.?\s*no|upi|successfully|is|was|for|with|a\/c|if|not|avl|bal)\b|\s+re-|\s+\d{6,}|[.,!?\n]|$)/i);
   if(p)payee=p[1].trim();
   return{amt,payee};
 }
