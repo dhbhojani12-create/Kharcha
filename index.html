@@ -377,6 +377,7 @@ async function makeBackup(){
   return{name:'Kharcha-backup-'+new Date().toISOString().slice(0,10)+'.zip',b64:await z.generateAsync({type:'base64',compression:'DEFLATE'})};
 }
 async function backupTo(where){
+  if(APP&&!APP.shareFile&&where!=='save'){toast('Update the Kharcha app to back up to PoolDrive – saving to phone instead');where='save'}
   toast('Preparing backup…');
   try{const b=await makeBackup();
     if(APP&&where==='pool')APP.shareFile(b.name,b.b64,'application/zip',POOLDRIVE);
@@ -406,12 +407,13 @@ function ago(t){if(!t)return'never';const d=Math.floor((Date.now()-t)/864e5);ret
 function vMore(){
   const acc=APP&&APP.hasAccessibility&&APP.hasAccessibility();
   const pool=APP&&APP.hasApp&&APP.hasApp(POOLDRIVE);
+  const old=APP&&!APP.shareFile;
   view.innerHTML=`<h2>Settings</h2>
   ${APP?`<div class="card"><h4>Instant capture</h4><p class="small muted" style="margin:0 0 6px">After you pay in Samsung Wallet, GPay, PhonePe, Paytm or BHIM, a card pops up to tag the payment.</p>
     <div class="srow"><span>Status</span><span class="status ${acc?'ok':'bad'}">${acc?'ON':'OFF'}</span></div>
     ${acc?'':'<button class="btn pri" id="accB">Turn on</button><p class="small muted" style="margin:8px 0 0">Accessibility → Installed apps → Kharcha → On. Greyed out? <a href="#" id="accInfo" style="color:var(--pri)">App info</a> → ⋮ → Allow restricted settings.</p>'}
     <button class="srow" id="diagB"><span>Capture log</span><span class="chev">›</span></button></div>`:''}
-  <div class="card"><h4>Backup</h4><p class="small muted" style="margin:0 0 4px">All expenses and attached bills in one file. Last backup: <b>${ago(S.lastBackup)}</b></p>
+  ${old?'<div class="banner" style="margin-top:0">⬆️ A newer Kharcha app is available – install Kharcha 4.0 to use backup to PoolDrive, bills and camera.</div>':''}<div class="card"><h4>Backup</h4><p class="small muted" style="margin:0 0 4px">All expenses and attached bills in one file. Last backup: <b>${ago(S.lastBackup)}</b></p>
     ${APP?(pool?'<button class="btn pri" id="bkPool">Back up to PoolDrive</button>':'<button class="btn pri" id="bkShare">Back up (choose app)</button><p class="small muted" style="margin:6px 0 0">Install the PoolDrive app to back up there in one tap.</p>'):''}
     <button class="btn" id="bkSave">Save backup file${APP?' to phone':''}</button>
     <label class="btn" style="cursor:pointer">Restore from backup<input type="file" accept=".zip,.json,application/zip,application/json" id="rs" hidden></label></div>
