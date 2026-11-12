@@ -34,7 +34,7 @@ public class PayReader extends AccessibilityService {
             "check balance", "pay again", "split", "split bill", "transaction details", "payment complete",
             "powered by upi", "google pay", "phonepe", "paytm", "samsung wallet", "bhim", "contact support", "help",
             "note", "message", "amount", "rewards", "cashback", "scratch card", "view history", "bank account", "via",
-            "receipt", "navigate up", "go back", "ok", "home", "paid to", "sent to", "money sent", "payment done",
+            "receipt", "powered by", "powered by upi", "navigate up", "transaction id", "upi ref", "reference", "details", "payment details", "transaction details", "view receipt", "share screenshot", "report a problem", "need help", "pay", "back to home", "continue", "go back", "ok", "home", "paid to", "sent to", "money sent", "payment done",
             "verified", "verified merchant", "upi id", "your bank", "view balance", "rate us", "download", "copy"));
 
     static String lastSig = "";
@@ -76,7 +76,8 @@ public class PayReader extends AccessibilityService {
             lastSigTs = now;
 
             String txt = "You paid ₹" + Parse.fmt(amt) + (payee.isEmpty() ? "" : " to " + payee) + ".";
-            PayListener.log(this, pkg, "Screen: ₹" + Parse.fmt(amt) + (payee.isEmpty() ? "" : " → " + payee), "CAPTURED (screen)");
+            String raw = String.join(" | ", lines);
+            PayListener.log(this, pkg, "Screen: ₹" + Parse.fmt(amt) + " → " + (payee.isEmpty() ? "?" : payee) + "\nRAW: " + (raw.length() > 600 ? raw.substring(0, 600) : raw), "CAPTURED (screen)");
             Capture.lastScreenTs = now;
             Capture.go(this, txt, now, true);
         } catch (Exception ignored) {
@@ -100,32 +101,35 @@ public class PayReader extends AccessibilityService {
         if (STOP.contains(s.toLowerCase())) return false;
         if (s.replaceAll("[^A-Za-z]", "").length() < 3) return false;
         if (BANKISH.matcher(s).find()) return false;
+        if (s.toLowerCase().startsWith("powered")) return false;
         return s.split("\\s+").length <= 6;
     }
 
     static String findPayee(List<String> lines) {
         int n = lines.size();
-        // 1) the first real name right after the amount (Samsung: ₹10.00 / Sent / B / NAME)
         int amtLine = -1;
         for (int i = 0; i < n; i++) if (lines.get(i).contains("₹")) { amtLine = i; break; }
-        if (amtLine >= 0)
-            for (int i = amtLine + 1; i < Math.min(n, amtLine + 6); i++) {
-                String l = lines.get(i).trim();
-                String low = l.toLowerCase();
-                if ((low.startsWith("paid to ") || low.startsWith("sent to ")) && isName(l.substring(8))) return l.substring(8).trim();
-                if (isName(l)) return l;
-            }
-        // 2) "Paid to" / "To" labels
+        String best = "";
+        int bestScore = -1;
         for (int i = 0; i < n; i++) {
             String l = lines.get(i).trim();
             String low = l.toLowerCase();
-            if ((low.startsWith("paid to ") || low.startsWith("sent to ")) && isName(l.substring(8))) return l.substring(8).trim();
-            if ((low.equals("paid to") || low.equals("sent to") || low.equals("to")) && i + 1 < n && isName(lines.get(i + 1)))
-                return lines.get(i + 1).trim();
+            String cand = l;
+            int score = 0;
+            if ((low.startsWith("paid to ") || low.startsWith("sent to ")) && l.length() > 8) { cand = l.substring(8).trim(); score += 4; }
+            if (!isName(cand)) continue;
+            // name sits right above the UPI ID (******0050@hdfc)
+            for (int j = i + 1; j <= Math.min(n - 1, i + 2); j++) if (lines.get(j).contains("@")) { score += 5; break; }
+            if (i > 0) {
+                String prev = lines.get(i - 1).trim().toLowerCase();
+                if (prev.equals("to") || prev.equals("paid to") || prev.equals("sent to")) score += 4;
+            }
+            String letters = cand.replaceAll("[^A-Za-z]", "");
+            if (letters.equals(letters.toUpperCase()) && cand.trim().split("\\s+").length >= 2) score += 2;
+            if (amtLine >= 0 && i > amtLine && i <= amtLine + 6) score += 1;
+            if (score > bestScore) { bestScore = score; best = cand.trim(); }
         }
-        // 3) any name on screen
-        for (int i = 0; i < n; i++) if (isName(lines.get(i))) return lines.get(i).trim();
-        return "";
+        return best;
     }
 
     @Override

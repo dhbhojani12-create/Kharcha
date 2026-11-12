@@ -166,7 +166,7 @@ public class PayListener extends NotificationListenerService {
         JSONArray b = new JSONArray();
         try {
             JSONObject o = new JSONObject();
-            o.put("pkg", pkg); o.put("t", t.length() > 160 ? t.substring(0, 160) : t); o.put("why", why); o.put("ts", System.currentTimeMillis());
+            o.put("pkg", pkg); o.put("t", t.length() > 700 ? t.substring(0, 700) : t); o.put("why", why); o.put("ts", System.currentTimeMillis());
             b.put(o);
             for (int i = 0; i < a.length() && i < 24; i++) b.put(a.get(i));
         } catch (Exception ignored) { }
