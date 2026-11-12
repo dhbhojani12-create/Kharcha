@@ -220,8 +220,8 @@ function payForm(q){
   <p class="small muted" style="margin:-6px 0 4px">What is this for?</p>
   ${catGrid(sug,'pCats')}
   <input id="pNote" placeholder="Note (optional)">
-  <button class="btn pri big" id="pGo">Save & open UPI app →</button>
-  <p class="muted small" style="text-align:center">Choose Samsung Wallet / any UPI app and enter your PIN there. Come back here after paying.</p>`,sh=>{
+  <button class="btn pri big" id="pGo">Save →</button>
+  <p class="muted small" style="text-align:center">Then pay as usual in Samsung Wallet and come back to tick ✅.</p>`,sh=>{
     const cats=sh.querySelector('#pCats');bindPick(cats,'data-c');
     if(!fixed)setTimeout(()=>sh.querySelector('#pAmt')?.focus(),150);
     sh.querySelector('#pGo').onclick=()=>{
@@ -232,12 +232,23 @@ function payForm(q){
       S.expenses.push(e);S.pendingId=e.id;learn(q.pn,q.pa,c);save();
       const p=new URLSearchParams(q.p);if(!fixed)p.set('am',amt.toFixed(2));if(!p.get('cu'))p.set('cu','INR');if(!p.get('tn')&&note)p.set('tn',note.slice(0,40));
       const url='upi://pay?'+[...p].map(([k,v])=>k+'='+encodeURIComponent(v).replace(/%40/g,'@')).join('&');
-      closeSheet();render();askedAt=Date.now();openUPI(url);
+      render();payNowSheet(e,url);
     };
   });
 }
 let askedAt=0;
 function openUPI(url){location.href=url}
+function payNowSheet(e,url){
+  openSheet(`<h3>Saved – now pay 👍</h3><p class="muted" style="margin-top:0">Open <b>Samsung Wallet</b>, scan the same QR and pay</p>
+  <div class="card" style="text-align:center;margin:8px 0"><div class="big2">${inr(e.amt)}</div><div>${esc(e.payee)}</div><div class="small muted">${esc(e.vpa||'')}</div></div>
+  <button class="btn pri big" id="nPaid">✅ Paid</button>
+  <button class="btn ghost" id="nNo">❌ Didn't pay – remove it</button>
+  <button class="btn ghost" id="nTry" style="font-size:13px">Try opening UPI app directly (works only for some shops)</button>`,sh=>{
+    sh.querySelector('#nPaid').onclick=()=>{e.status='ok';if(S.pendingId===e.id)S.pendingId=null;save();closeSheet();render();toast('Saved ✓')};
+    sh.querySelector('#nNo').onclick=()=>{S.expenses=S.expenses.filter(x=>x.id!==e.id);if(S.pendingId===e.id)S.pendingId=null;save();closeSheet();render();toast('Removed')};
+    sh.querySelector('#nTry').onclick=()=>{askedAt=Date.now();openUPI(url)};
+  });
+}
 function confirmSheet(e){
   e=e||S.expenses.find(x=>x.id===S.pendingId);if(!e){S.pendingId=null;save();return}
   openSheet(`<h3>Did the payment go through?</h3><p class="muted"><b style="color:var(--ink);font-size:22px">${inr(e.amt)}</b> to ${esc(e.payee)}<br>${cat(e.cat).emoji} ${esc(cat(e.cat).name)}${e.note?' · '+esc(e.note):''}</p>
