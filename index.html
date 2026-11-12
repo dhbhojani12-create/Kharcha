@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>Kharcha – Expense Tracker</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#0f172a;--mut:#64748b;--line:#e5e9f0;--pri:#0f766e;--pri2:#14b8a6;--red:#dc2626}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+main{max-width:560px;margin:0 auto;padding:16px}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,select{font:inherit;width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;margin:6px 0;color:var(--ink)}
+.hero{background:linear-gradient(135deg,#0f766e,#134e4a);color:#fff;border-radius:20px;padding:20px;display:flex;justify-content:space-between;align-items:flex-end}
+.hero h1{margin:4px 0 0;font-size:34px;letter-spacing:-.5px}
+.hero small{opacity:.8}
+.today{text-align:right}.today b{display:block;font-size:20px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+.act{background:var(--card);border-radius:18px;padding:18px 10px;font-size:28px;display:flex;flex-direction:column;align-items:center;gap:6px;border:1px solid var(--line)}
+.act span{font-size:15px;font-weight:600}
+.act.scan{background:var(--ink);color:#fff;border-color:var(--ink)}
+.day{margin:18px 4px 6px;font-size:13px;font-weight:600;color:var(--mut);display:flex;justify-content:space-between}
+.list{background:var(--card);border-radius:16px;border:1px solid var(--line);overflow:hidden}
+.item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);width:100%;text-align:left}
+.item:last-child{border-bottom:0}
+.ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex:none}
+.item .t{flex:1;min-width:0}.item .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.item .t small{color:var(--mut);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .a{font-weight:700;white-space:nowrap}
+.item.pend{background:#fffbeb}
+.tag{font-size:11px;padding:2px 6px;border-radius:6px;background:#fef3c7;color:#92400e;margin-left:6px;font-weight:600}
+.warn{display:block;width:100%;text-align:left;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:12px;padding:10px 12px;margin:8px 0}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:6px 0 calc(6px + env(safe-area-inset-bottom));z-index:5}
+.tabs button{display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--mut);padding:4px 14px;gap:2px}
+.tabs button i{font-style:normal;font-size:20px}
+.tabs button.on{color:var(--pri);font-weight:700}
+.ov{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:10;display:flex;align-items:flex-end;justify-content:center}
+.ov.hidden{display:none}
+.sheet{background:#fff;width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding:8px 18px calc(20px + env(safe-area-inset-bottom));animation:up .2s ease}
+@keyframes up{from{transform:translateY(40px);opacity:.5}}
+.grab{width:40px;height:4px;background:var(--line);border-radius:4px;margin:6px auto 10px}
+.sheet h3{margin:4px 0 6px;font-size:19px}
+.amt{display:flex;align-items:center;gap:6px;border-bottom:2px solid var(--pri);margin:6px 0 14px}
+.amt span{font-size:30px;font-weight:700;color:var(--mut)}
+.amt input{border:0;font-size:38px;font-weight:700;padding:6px 0;margin:0;background:transparent;outline:none}
+.cats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 10px}
+.cats button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px;border-radius:14px;border:1.5px solid var(--line);font-size:11.5px;line-height:1.15;text-align:center}
+.cats button b{font-size:22px;font-weight:400}
+.cats button.on{border-color:var(--pri);background:#f0fdfa;color:var(--pri);font-weight:600}
+.cats.err button{border-color:#fca5a5}
+.chips{display:flex;gap:8px;margin:6px 0;flex-wrap:wrap}
+.chips button{padding:8px 14px;border-radius:999px;border:1.5px solid var(--line);font-weight:500}
+.chips button.on{border-color:var(--pri);background:var(--pri);color:#fff}
+.btn{padding:14px 16px;border-radius:14px;font-weight:600;background:var(--line);flex:1;text-align:center}
+.btn.pri{background:var(--pri);color:#fff}
+.btn.danger{background:#fee2e2;color:var(--red);flex:none}
+.btn.ghost{background:transparent;border:1.5px solid var(--line);width:100%;margin-top:8px;display:block}
+.btn.big{width:100%;font-size:17px;padding:16px;display:block}
+.row{display:flex;gap:10px;margin-top:12px}
+.muted{color:var(--mut)}.small{font-size:12.5px}
+.cam{position:relative;border-radius:18px;overflow:hidden;background:#000;aspect-ratio:1}
+.cam video{width:100%;height:100%;object-fit:cover;display:block}
+.frame{position:absolute;inset:18%;border:3px solid rgba(255,255,255,.9);border-radius:18px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0}
+.card h4{margin:0 0 10px}
+.mnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.mnav button{font-size:24px;padding:4px 16px}
+.mnav b{font-size:17px}
+.big2{font-size:30px;font-weight:800;margin:2px 0}
+.crow{display:flex;align-items:center;gap:10px;padding:8px 0;width:100%;text-align:left}
+.crow .g{flex:1;min-width:0}
+.crow .bar{height:8px;border-radius:6px;background:var(--line);overflow:hidden;margin-top:5px}
+.crow .bar i{display:block;height:100%;border-radius:6px}
+.daily{display:flex;align-items:flex-end;gap:2px;height:110px;margin-top:8px}
+.daily div{flex:1;background:var(--pri2);border-radius:3px 3px 0 0;min-height:2px}
+.daily div.z{background:var(--line)}
+.dlab{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-top:4px}
+.mitem{padding:12px 0;border-bottom:1px solid var(--line)}
+.mitem:last-child{border-bottom:0}
+.mitem .top{display:flex;justify-content:space-between;gap:10px}
+.mini{display:flex;gap:6px;overflow-x:auto;padding:8px 0 4px}
+.mini button{flex:none;font-size:20px;width:42px;height:42px;border-radius:12px;border:1.5px solid var(--line)}
+.mini button.on{border-color:var(--pri);background:#ccfbf1}
+.mitem .row{margin-top:6px}.mitem .btn{padding:10px}
+.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;z-index:30;font-size:14px;max-width:90vw}
+.stat{display:flex;gap:10px}.stat div{flex:1;background:var(--bg);border-radius:12px;padding:10px;text-align:center;font-size:12px;color:var(--mut)}.stat b{display:block;font-size:20px;color:var(--ink)}
+.empty{text-align:center;color:var(--mut);padding:36px 20px}
+label.file{display:block;text-align:center;padding:18px;border:2px dashed #99f6e4;border-radius:14px;color:var(--pri);font-weight:600;cursor:pointer;margin-top:8px}
+label.file input{display:none}
+ol.steps{padding-left:20px;margin:6px 0;color:var(--mut)}ol.steps li{margin:4px 0}
+.catrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.catrow span{flex:1}
+.catrow button{color:var(--red);font-size:13px}
+</style>
+</head>
+<body>
+<main id="view"></main>
+<nav class="tabs">
+  <button data-t="home" class="on"><i>🏠</i>Home</button>
+  <button data-t="reports"><i>📊</i>Reports</button>
+  <button data-t="check"><i>🧾</i>Statement</button>
+  <button data-t="more"><i>⚙️</i>More</button>
+</nav>
+<div id="ov" class="ov hidden"><div class="sheet" id="sheet"></div></div>
+
+<script>
+/* ============ Kharcha – data ============ */
+const LS='kharcha.v1';
+const DEF_CATS=[['food','Food','🍔','#f97316'],['groc','Groceries','🛒','#84cc16'],['travel','Travel','🚕','#0ea5e9'],['shop','Shopping','🛍️','#ec4899'],['bills','Bills & Recharge','💡','#eab308'],['study','Study','📚','#6366f1'],['health','Health','💊','#ef4444'],['fun','Fun','🎬','#a855f7'],['friends','Friends','🤝','#14b8a6'],['home','Home','🏠','#78716c'],['gift','Gifts','🎁','#f43f5e'],['other','Other','📦','#64748b']].map(([id,name,emoji,color])=>({id,name,emoji,color}));
+const MODES=['UPI','Cash','Card','Bank'];
+let S=load();
+function load(){try{const s=JSON.parse(localStorage.getItem(LS));if(s&&Array.isArray(s.expenses)){s.cats=s.cats||DEF_CATS;s.rules=s.rules||{};s.seen=s.seen||{};return s}}catch(e){}return{v:1,expenses:[],cats:DEF_CATS.slice(),rules:{},seen:{},pendingId:null}}
+function save(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){toast('⚠️ Could not save – storage full?')}}
+
+/* ============ helpers ============ */
+const $=s=>document.querySelector(s);
+const view=$('#view');
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const inr=n=>'₹'+(Math.round(n*100)/100).toLocaleString('en-IN',{maximumFractionDigits:2});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cat=id=>S.cats.find(c=>c.id===id)||S.cats.find(c=>c.id==='other')||{id:'other',name:'Other',emoji:'📦',color:'#64748b'};
+const payeeKey=s=>(s||'').toLowerCase().replace(/[^a-z0-9@.]/g,'');
+const ym=d=>{d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
+const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const monthName=m=>{const[y,mm]=m.split('-');return MN[+mm-1]+' '+y};
+const sod=d=>{d=new Date(d);d.setHours(0,0,0,0);return d.getTime()};
+const sameDay=(a,b)=>sod(a)===sod(b);
+const sum=a=>a.reduce((s,e)=>s+e.amt,0);
+const okEx=()=>S.expenses.filter(e=>e.status!=='pending');
+const tm=t=>new Date(t).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'});
+function dayLabel(t){const n=Date.now();if(sameDay(t,n))return'Today';if(sameDay(t,n-864e5))return'Yesterday';const d=new Date(t);return d.getDate()+' '+MN[d.getMonth()]+(d.getFullYear()!==new Date().getFullYear()?' '+d.getFullYear():'')}
+function dtLocal(t){const d=new Date(t);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,16)}
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
+function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${src}"]`))return res();const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Could not load '+src+' – check internet'));document.head.appendChild(s)})}
+const loadXLSX=()=>window.XLSX?Promise.resolve():loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+const loadJsQR=()=>window.jsQR?Promise.resolve():loadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js');
+
+const KW=[[/swiggy|zomato|domino|mcdonald|kfc|pizza|cafe|restaurant|hotel|food|bakery|chai|tea|canteen|burger|starbucks|eatclub/i,'food'],
+[/blinkit|zepto|bigbasket|dmart|instamart|grocer|kirana|supermarket|reliance fresh|jiomart|milk|dairy/i,'groc'],
+[/uber|ola|rapido|irctc|metro|railway|petrol|fuel|indianoil|iocl|hpcl|bpcl|fastag|redbus|makemytrip|indigo|parking|auto/i,'travel'],
+[/amazon|flipkart|myntra|ajio|meesho|nykaa|croma|decathlon|tatacliq/i,'shop'],
+[/airtel|jio|vodafone|\bvi\b|bsnl|electric|power|bescom|mseb|adani|torrent|recharge|broadband|gas|bill|tata ?play|dth/i,'bills'],
+[/icai|book|udemy|course|coaching|xerox|stationery|unacademy|exam/i,'study'],
+[/apollo|pharm|medplus|hospital|clinic|1mg|netmeds|chemist|medical|lab/i,'health'],
+[/netflix|spotify|hotstar|bookmyshow|prime|pvr|inox|youtube|steam|playstore/i,'fun']];
+const guessCat=s=>{for(const[r,c]of KW)if(r.test(s||''))return S.cats.some(x=>x.id===c)?c:'';return''};
+function suggest(payee,vpa,extra){return S.rules[payeeKey(payee)]||S.rules[payeeKey(vpa)]||guessCat([payee,vpa,extra].join(' '))}
+function learn(payee,vpa,c){if(!c)return;if(payee)S.rules[payeeKey(payee)]=c;if(vpa)S.rules[payeeKey(vpa)]=c}
+const catGrid=(sel,id='gCats')=>`<div class="cats" id="${id}">${S.cats.map(c=>`<button data-c="${c.id}" class="${c.id===sel?'on':''}"><b>${c.emoji}</b>${esc(c.name)}</button>`).join('')}</div>`;
+function bindPick(el,attr,onPick){el.addEventListener('click',ev=>{const b=ev.target.closest(`button[${attr}]`);if(!b)return;el.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');el.classList.remove('err');onPick&&onPick(b.getAttribute(attr))})}
+const picked=(el,attr)=>{const b=el.querySelector('button.on');return b?b.getAttribute(attr):''};
+const parseAmt=v=>{const n=parseFloat(String(v).replace(/[^0-9.]/g,''));return isFinite(n)?Math.round(n*100)/100:0};
+
+/* ============ sheet (bottom modal) ============ */
+let camStream=null,scanning=false;
+function openSheet(html,mount){$('#sheet').innerHTML='<div class="grab"></div>'+html;$('#ov').classList.remove('hidden');mount&&mount($('#sheet'))}
+function closeSheet(){stopCam();$('#ov').classList.add('hidden');$('#sheet').innerHTML=''}
+$('#ov').addEventListener('click',e=>{if(e.target.id==='ov')closeSheet()});
+
+/* ============ add / edit ============ */
+function addSheet(e){
+  const x=Object.assign({amt:'',cat:'',mode:'UPI',payee:'',note:'',ts:Date.now()},e||{});
+  openSheet(`<h3>${x.id?'Edit expense':'Quick add'}</h3>
+  <div class="amt"><span>₹</span><input id="fAmt" inputmode="decimal" placeholder="0" value="${x.amt||''}"></div>
+  ${catGrid(x.cat,'fCats')}
+  <div class="chips" id="fMode">${MODES.map(m=>`<button data-m="${m}" class="${m===x.mode?'on':''}">${m}</button>`).join('')}</div>
+  <input id="fPayee" placeholder="Paid to (optional)" value="${esc(x.payee)}">
+  <input id="fNote" placeholder="Note – e.g. lunch with friends (optional)" value="${esc(x.note)}">
+  <input id="fTs" type="datetime-local" value="${dtLocal(x.ts)}">
+  <div class="row"><button class="btn pri" id="fSave">Save</button>${x.id?'<button class="btn danger" id="fDel">Delete</button>':''}</div>`,sh=>{
+    const cats=sh.querySelector('#fCats');bindPick(cats,'data-c');bindPick(sh.querySelector('#fMode'),'data-m');
+    sh.querySelector('#fPayee').addEventListener('change',ev=>{if(!picked(cats,'data-c')){const s=suggest(ev.target.value);if(s)cats.querySelector(`[data-c="${s}"]`)?.classList.add('on')}});
+    if(!x.id)setTimeout(()=>sh.querySelector('#fAmt')?.focus(),150);
+    sh.querySelector('#fSave').onclick=()=>{
+      const amt=parseAmt(sh.querySelector('#fAmt').value);if(!amt){toast('Enter an amount');return}
+      const c=picked(cats,'data-c');if(!c){cats.classList.add('err');toast('Pick a category');return}
+      const rec={...x,amt,cat:c,mode:picked(sh.querySelector('#fMode'),'data-m')||'UPI',payee:sh.querySelector('#fPayee').value.trim(),note:sh.querySelector('#fNote').value.trim(),ts:new Date(sh.querySelector('#fTs').value).getTime()||Date.now()};
+      if(x.id){const i=S.expenses.findIndex(z=>z.id===x.id);S.expenses[i]=rec}else{rec.id=uid();rec.src='manual';rec.status='ok';S.expenses.push(rec)}
+      learn(rec.payee,rec.vpa,c);save();closeSheet();render();toast('Saved ✓')};
+    const d=sh.querySelector('#fDel');if(d)d.onclick=()=>{if(!confirm('Delete this expense?'))return;S.expenses=S.expenses.filter(z=>z.id!==x.id);save();closeSheet();render();toast('Deleted')};
+  });
+}
+
+/* ============ scan & pay ============ */
+function stopCam(){scanning=false;if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}}
+async function decodeFrom(src){ // src: video or image element / bitmap
+  if('BarcodeDetector' in window){try{const det=new BarcodeDetector({formats:['qr_code']});const r=await det.detect(src);if(r[0])return r[0].rawValue}catch(e){}}
+  await loadJsQR();const w=src.videoWidth||src.naturalWidth||src.width,h=src.videoHeight||src.naturalHeight||src.height;if(!w||!h)return null;
+  const sc=Math.min(1,800/Math.max(w,h));const cv=document.createElement('canvas');cv.width=w*sc;cv.height=h*sc;const cx=cv.getContext('2d',{willReadFrequently:true});cx.drawImage(src,0,0,cv.width,cv.height);
+  const r=jsQR(cx.getImageData(0,0,cv.width,cv.height).data,cv.width,cv.height);return r?r.data:null}
+function scanSheet(){
+  openSheet(`<h3>Scan & Pay</h3><p class="muted small" style="margin-top:0">Scan the shop's UPI QR here – the expense gets saved, then your UPI app opens to pay.</p>
+  <div class="cam"><video id="vid" playsinline muted></video><div class="frame"></div></div>
+  <p class="muted" id="scanMsg" style="text-align:center">Starting camera…</p>
+  <label class="btn ghost">🖼️ Pick QR photo from gallery<input type="file" accept="image/*" id="qrImg" hidden></label>
+  <button class="btn ghost" id="manualVpa">⌨️ Type UPI ID instead</button>`,async sh=>{
+    const msg=sh.querySelector('#scanMsg');
+    sh.querySelector('#manualVpa').onclick=()=>{const v=prompt('UPI ID (e.g. name@okaxis)');if(v&&v.includes('@'))handleQR('upi://pay?pa='+encodeURIComponent(v.trim()));else if(v)toast('That doesn\'t look like a UPI ID')};
+    sh.querySelector('#qrImg').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;const img=new Image();img.src=URL.createObjectURL(f);await img.decode();const t=await decodeFrom(img);t?handleQR(t):toast('No QR found in that photo')};
+    try{
+      camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+      const v=sh.querySelector('#vid');v.srcObject=camStream;await v.play();msg.textContent='Point at the UPI QR code';scanning=true;
+      const loop=async()=>{if(!scanning)return;try{const t=await decodeFrom(v);if(t&&scanning){if(/^upi:/i.test(t)){stopCam();handleQR(t);return}msg.textContent='That QR is not a UPI payment QR'}}catch(e){}setTimeout(loop,250)};loop();
+    }catch(e){msg.textContent='Camera not available – allow camera permission, or pick a photo / type UPI ID below.'}
+  });
+}
+function handleQR(text){
+  const q=(text.split('?')[1]||'');const p=new URLSearchParams(q);const pa=p.get('pa');
+  if(!pa){toast('No UPI ID in this QR');return}
+  payForm({p,pa,pn:p.get('pn')||'',am:p.get('am')||''});
+}
+function payForm(q){
+  const name=q.pn||q.pa;const fixed=parseAmt(q.am)>0;const sug=suggest(q.pn,q.pa);
+  openSheet(`<h3>Pay ${esc(name)}</h3><p class="muted small" style="margin-top:0">${esc(q.pa)}</p>
+  <div class="amt"><span>₹</span><input id="pAmt" inputmode="decimal" placeholder="0" value="${fixed?parseAmt(q.am):''}" ${fixed?'readonly':''}></div>
+  <p class="small muted" style="margin:-6px 0 4px">What is this for?</p>
+  ${catGrid(sug,'pCats')}
+  <input id="pNote" placeholder="Note (optional)">
+  <button class="btn pri big" id="pGo">Save & open UPI app →</button>
+  <p class="muted small" style="text-align:center">Choose Samsung Wallet / any UPI app and enter your PIN there. Come back here after paying.</p>`,sh=>{
+    const cats=sh.querySelector('#pCats');bindPick(cats,'data-c');
+    if(!fixed)setTimeout(()=>sh.querySelector('#pAmt')?.focus(),150);
+    sh.querySelector('#pGo').onclick=()=>{
+      const amt=parseAmt(sh.querySelector('#pAmt').value);if(!amt){toast('Enter an amount');return}
+      const c=picked(cats,'data-c');if(!c){cats.classList.add('err');toast('Pick a category');return}
+      const note=sh.querySelector('#pNote').value.trim();
+      const e={id:uid(),amt,cat:c,mode:'UPI',payee:q.pn||q.pa,vpa:q.pa,note,ts:Date.now(),src:'scan',status:'pending'};
+      S.expenses.push(e);S.pendingId=e.id;learn(q.pn,q.pa,c);save();
+      const p=new URLSearchParams(q.p);if(!fixed)p.set('am',amt.toFixed(2));if(!p.get('cu'))p.set('cu','INR');if(!p.get('tn')&&note)p.set('tn',note.slice(0,40));
+      const url='upi://pay?'+[...p].map(([k,v])=>k+'='+encodeURIComponent(v).replace(/%40/g,'@')).join('&');
+      closeSheet();render();askedAt=Date.now();openUPI(url);
+    };
+  });
+}
+let askedAt=0;
+function openUPI(url){location.href=url}
+function confirmSheet(e){
+  e=e||S.expenses.find(x=>x.id===S.pendingId);if(!e){S.pendingId=null;save();return}
+  openSheet(`<h3>Did the payment go through?</h3><p class="muted"><b style="color:var(--ink);font-size:22px">${inr(e.amt)}</b> to ${esc(e.payee)}<br>${cat(e.cat).emoji} ${esc(cat(e.cat).name)}${e.note?' · '+esc(e.note):''}</p>
+  <button class="btn pri big" id="cYes">✅ Yes, paid</button>
+  <button class="btn ghost" id="cNo">❌ No, it failed / cancelled</button>
+  <button class="btn ghost" id="cLater">Ask me later</button>`,sh=>{
+    sh.querySelector('#cYes').onclick=()=>{e.status='ok';if(S.pendingId===e.id)S.pendingId=null;save();closeSheet();render();toast('Saved ✓')};
+    sh.querySelector('#cNo').onclick=()=>{S.expenses=S.expenses.filter(x=>x.id!==e.id);if(S.pendingId===e.id)S.pendingId=null;save();closeSheet();render();toast('Removed')};
+    sh.querySelector('#cLater').onclick=()=>{if(S.pendingId===e.id)S.pendingId=null;save();closeSheet();render()};
+  });
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&S.pendingId&&Date.now()-askedAt>1500)setTimeout(()=>{if(S.pendingId&&$('#ov').classList.contains('hidden'))confirmSheet()},500)});
+
+/* ============ views ============ */
+let tab='home',month=ym(Date.now()),rec=null;
+document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.t;render();scrollTo(0,0)});
+function render(){document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));({home:vHome,reports:vReports,check:vCheck,more:vMore})[tab]()}
+
+function itemRow(e){const c=cat(e.cat);const pend=e.status==='pending';
+  return `<button class="item ${pend?'pend':''}" data-id="${e.id}"><div class="ico" style="background:${c.color}22">${c.emoji}</div>
+  <div class="t"><b>${esc(e.payee||c.name)}${pend?'<span class="tag">confirm?</span>':''}</b><small>${esc(c.name)}${e.note?' · '+esc(e.note):''} · ${e.mode} · ${e.src==='statement'?'from statement':tm(e.ts)}</small></div>
+  <div class="a">${inr(e.amt)}</div></button>`}
+function groupList(arr){
+  if(!arr.length)return`<div class="empty">No expenses yet.<br>Next time you pay, tap <b>Scan &amp; Pay</b> – it takes 3 seconds.</div>`;
+  const g={};arr.forEach(e=>{const k=sod(e.ts);(g[k]=g[k]||[]).push(e)});
+  return Object.keys(g).sort((a,b)=>b-a).map(k=>{const l=g[k];return`<div class="day"><span>${dayLabel(+k)}</span><span>${inr(sum(l.filter(e=>e.status!=='pending')))}</span></div><div class="list">${l.map(itemRow).join('')}</div>`}).join('');
+}
+function bindItems(root){root.addEventListener('click',ev=>{const b=ev.target.closest('.item[data-id]');if(!b)return;const e=S.expenses.find(x=>x.id===b.dataset.id);if(!e)return;e.status==='pending'?confirmSheet(e):addSheet(e)})}
+
+function vHome(){
+  const now=Date.now(),m=ym(now),ok=okEx();
+  const mon=ok.filter(e=>ym(e.ts)===m),today=ok.filter(e=>sameDay(e.ts,now));
+  const pend=S.expenses.filter(e=>e.status==='pending');
+  const recent=[...S.expenses].sort((a,b)=>b.ts-a.ts).slice(0,80);
+  view.innerHTML=`<section class="hero"><div><small>Spent in ${monthName(m)}</small><h1>${inr(sum(mon))}</h1></div><div class="today"><small>Today</small><b>${inr(sum(today))}</b></div></section>
+  <div class="actions"><button class="act scan" id="hScan">📷<span>Scan &amp; Pay</span></button><button class="act" id="hAdd">➕<span>Quick Add</span></button></div>
+  ${pend.length?`<button class="warn" id="hPend">⏳ ${pend.length} payment${pend.length>1?'s':''} waiting – tap to confirm</button>`:''}
+  <div id="hList">${groupList(recent)}</div>`;
+  $('#hScan').onclick=scanSheet;$('#hAdd').onclick=()=>addSheet();
+  if(pend.length)$('#hPend').onclick=()=>confirmSheet(pend[0]);
+  bindItems($('#hList'));
+}
+
+function vReports(){
+  const ex=okEx().filter(e=>ym(e.ts)===month),tot=sum(ex);
+  const [y,mm]=month.split('-').map(Number);const prevM=ym(new Date(y,mm-2,1));const prevT=sum(okEx().filter(e=>ym(e.ts)===prevM));
+  const byC={};ex.forEach(e=>byC[e.cat]=(byC[e.cat]||0)+e.amt);const cs=Object.entries(byC).sort((a,b)=>b[1]-a[1]);
+  const byP={};ex.forEach(e=>{const k=e.payee||cat(e.cat).name;byP[k]=byP[k]||{a:0,n:0};byP[k].a+=e.amt;byP[k].n++});const ps=Object.entries(byP).sort((a,b)=>b[1].a-a[1].a).slice(0,6);
+  const dim=new Date(y,mm,0).getDate();const dd=Array(dim).fill(0);ex.forEach(e=>dd[new Date(e.ts).getDate()-1]+=e.amt);const mx=Math.max(...dd,1);
+  const byM={};ex.forEach(e=>byM[e.mode]=(byM[e.mode]||0)+e.amt);
+  const isCur=month===ym(Date.now());const daysGone=isCur?new Date().getDate():dim;
+  const diff=prevT?Math.round((tot-prevT)/prevT*100):null;
+  view.innerHTML=`<div class="mnav"><button id="mPrev">‹</button><b>${monthName(month)}</b><button id="mNext" ${isCur?'style="opacity:.25" disabled':''}>›</button></div>
+  <div class="card"><div class="muted small">Total spent</div><div class="big2">${inr(tot)}</div>
+  <div class="small muted">${ex.length} expenses · avg ${inr(tot/Math.max(daysGone,1))}/day${diff!==null?` · ${diff>=0?'▲':'▼'} ${Math.abs(diff)}% vs ${monthName(prevM)}`:''}</div></div>
+  ${ex.length?`<div class="card"><h4>Where it went</h4>${cs.map(([c,a])=>{const k=cat(c);return`<button class="crow" data-c="${c}"><div class="ico" style="background:${k.color}22">${k.emoji}</div><div class="g"><div style="display:flex;justify-content:space-between"><b>${esc(k.name)}</b><b>${inr(a)}</b></div><div class="bar"><i style="width:${a/tot*100}%;background:${k.color}"></i></div></div><small class="muted" style="width:34px;text-align:right">${Math.round(a/tot*100)}%</small></button>`}).join('')}</div>
+  <div class="card"><h4>Day by day</h4><div class="daily">${dd.map(v=>`<div class="${v?'':'z'}" style="height:${v/mx*100}%" title="${inr(v)}"></div>`).join('')}</div><div class="dlab"><span>1</span><span>${Math.ceil(dim/2)}</span><span>${dim}</span></div></div>
+  <div class="card"><h4>Top places / people</h4>${ps.map(([p,o])=>`<div class="crow"><div class="g"><b>${esc(p)}</b><div class="small muted">${o.n} time${o.n>1?'s':''}</div></div><b>${inr(o.a)}</b></div>`).join('')}</div>
+  <div class="card"><h4>Paid by</h4><div class="stat">${MODES.filter(m=>byM[m]).map(m=>`<div><b>${inr(byM[m])}</b>${m}</div>`).join('')}</div></div>
+  <button class="btn ghost" id="mXls">⬇️ Export ${monthName(month)} to Excel</button>`:`<div class="empty">No expenses in ${monthName(month)}.</div>`}`;
+  $('#mPrev').onclick=()=>{month=prevM;render()};
+  $('#mNext').onclick=()=>{if(!isCur){month=ym(new Date(y,mm,1));render()}};
+  view.querySelectorAll('.crow[data-c]').forEach(b=>b.onclick=()=>{const c=cat(b.dataset.c);const l=ex.filter(e=>e.cat===b.dataset.c).sort((a,b)=>b.ts-a.ts);
+    openSheet(`<h3>${c.emoji} ${esc(c.name)} – ${monthName(month)}</h3><p class="muted" style="margin-top:0">${inr(sum(l))} · ${l.length} expenses</p><div class="list" id="cl">${l.map(itemRow).join('')}</div>`,sh=>bindItems(sh.querySelector('#cl')))});
+  const x=$('#mXls');if(x)x.onclick=()=>exportXlsx(ex,'Kharcha-'+month);
+}
+
+/* ============ statement check ============ */
+function num(v){if(typeof v==='number')return v;const s=String(v||'').replace(/[,₹\s]/g,'').replace(/(dr|cr)$/i,'');const n=parseFloat(s);return isFinite(n)?n:0}
+function parseDate(v){
+  if(v instanceof Date&&!isNaN(v))return new Date(v.getFullYear(),v.getMonth(),v.getDate(),12);
+  if(typeof v==='number'&&v>20000&&v<80000){const d=new Date(Math.round((v-25569)*864e5));return new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate(),12)}
+  const s=String(v||'').trim();let m=s.match(/^(\d{1,2})[\/\-. ]([A-Za-z]{3,9}|\d{1,2})[\/\-. ,]*(\d{2,4})/);
+  if(m){let mo=isNaN(m[2])?MN.findIndex(x=>x.toLowerCase()===m[2].slice(0,3).toLowerCase()):+m[2]-1;let yr=+m[3];if(yr<100)yr+=2000;if(mo<0||mo>11)return null;return new Date(yr,mo,+m[1],12)}
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3],12);return null}
+const SKIP=new Set(['upi','imps','neft','rtgs','pos','ach','nach','dr','cr','p2a','p2m','ref','txn','payment','paid','to','by','from','transfer','to transfer','by transfer','mob','ib','inb','bil','onl','ecom','atm','wdl','cash','mmt','upi out','upiout','sent','send','pay','collect','request']);
+function extractPayee(n){
+  const s=String(n).replace(/\s+/g,' ').trim();
+  for(let p of s.split(/[\/|:]+|\s-\s|-(?=\S)/)){p=p.trim();const l=p.toLowerCase();
+    if(!p||SKIP.has(l)||/^\d+$/.test(p)||p.includes('@')||/^[A-Z]{4}0[A-Z0-9]{6}$/.test(p)||p.replace(/[^a-z]/gi,'').length<3||/^(upi|ref|txn)\s*\d/i.test(p))continue;
+    return p.slice(0,40)}
+  return s.slice(0,40)}
+function detMode(n){return/upi/i.test(n)?'UPI':/pos|card|ecom/i.test(n)?'Card':/atm|cash/i.test(n)?'Cash':'Bank'}
+async function parseStatement(file){
+  await loadXLSX();
+  let wb;
+  if(/\.csv$/i.test(file.name)){wb=XLSX.read(await file.text(),{type:'string',raw:true})}else{wb=XLSX.read(new Uint8Array(await file.arrayBuffer()),{type:'array',cellDates:true})}
+  const out=[];
+  for(const name of wb.SheetNames){
+    const a=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:''});
+    let h=-1,ci={};
+    for(let i=0;i<Math.min(a.length,80);i++){
+      const r=a[i].map(x=>String(x).toLowerCase().replace(/\s+/g,' ').trim());
+      const di=r.findIndex(x=>/^(txn |tran |transaction |post |posting )?(date|dt)\b/.test(x)&&!/value/.test(x));
+      const ni=r.findIndex(x=>/narration|description|particular|remark|details/.test(x));
+      const wi=r.findIndex(x=>/withdraw|debit|^dr\b|dr\.? ?amount|amount ?\(?dr/.test(x));
+      const ai=r.findIndex(x=>/^amount|txn amount|transaction amount/.test(x)&&!/dr|cr|debit|credit|withdraw|deposit/.test(x));
+      const ti=r.findIndex(x=>/^(dr ?\/ ?cr|cr ?\/ ?dr|type|txn type|debit\/credit)$/.test(x));
+      if(di>-1&&ni>-1&&(wi>-1||(ai>-1&&ti>-1))){h=i;ci={d:di,n:ni,w:wi,a:ai,t:ti};break}
+    }
+    if(h<0)continue;
+    for(let i=h+1;i<a.length;i++){const r=a[i];
+      let amt=0;
+      if(ci.w>-1)amt=num(r[ci.w]);else if(/^d/i.test(String(r[ci.t]).trim()))amt=num(r[ci.a]);
+      if(!amt||amt<=0)continue;const d=parseDate(r[ci.d]);if(!d)continue;
+      const narr=String(r[ci.n]||'').replace(/\s+/g,' ').trim();
+      out.push({d:d.getTime(),amt:Math.round(amt*100)/100,narr,payee:extractPayee(narr),mode:detMode(narr)})}
+  }
+  return out;
+}
+function rowKey(r){return r.d+'|'+r.amt+'|'+r.narr.slice(0,60)}
+function reconcile(rows){
+  const used=new Set();
+  return rows.map(r=>{
+    const key=rowKey(r);if(S.seen[key])return{...r,key,st:'seen'};
+    const m=S.expenses.filter(e=>!used.has(e.id)&&e.mode!=='Cash'&&Math.abs(e.amt-r.amt)<0.5&&Math.abs(sod(e.ts)-sod(r.d))<=864e5*1.5)
+      .sort((a,b)=>Math.abs(sod(a.ts)-r.d)-Math.abs(sod(b.ts)-r.d))[0];
+    if(m){used.add(m.id);return{...r,key,st:'matched'}}
+    return{...r,key,st:'missing',cat:suggest(r.payee,'',r.narr)};
+  });
+}
+function vCheck(){
+  const miss=rec?rec.filter(r=>r.st==='missing'):[];
+  view.innerHTML=`<div class="card"><h4>🧾 Find what you forgot</h4>
+  <ol class="steps"><li>Download your bank statement as <b>Excel or CSV</b> from net banking / bank app.</li><li>Upload it here.</li><li>Kharcha shows only the spends you <b>didn't log</b> – tag them in a tap.</li></ol>
+  <label class="file">📂 Upload statement (.xls / .xlsx / .csv)<input type="file" id="stFile" accept=".xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"></label>
+  <p class="small muted">The file is read on your phone only – nothing is uploaded anywhere.</p></div>
+  <div id="stOut">${rec?recHtml(rec,miss):''}</div>`;
+  $('#stFile').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;$('#stOut').innerHTML='<p class="muted">Reading statement…</p>';
+    try{const rows=await parseStatement(f);if(!rows.length){$('#stOut').innerHTML='<div class="card">😕 Couldn\'t find transactions in this file. Make sure it\'s the Excel/CSV statement (with Date, Narration and Withdrawal/Debit columns).</div>';return}
+      rec=reconcile(rows);render()}catch(e){$('#stOut').innerHTML='<div class="card">⚠️ '+esc(e.message)+'</div>'}};
+  bindRec();
+}
+function recHtml(r,miss){
+  const n=s=>r.filter(x=>x.st===s).length;
+  return `<div class="card"><div class="stat"><div><b>${r.length}</b>debits</div><div><b>${n('matched')+n('seen')}</b>already logged</div><div><b style="color:${miss.length?'#d97706':'var(--pri)'}">${miss.length}</b>missing</div></div>
+  ${miss.length?(miss.some(x=>x.cat)?'<button class="btn pri big" id="addSug" style="margin-top:12px">✓ Add all with suggested category</button>':''):'<p style="text-align:center;margin:14px 0 0">🎉 Everything is logged!</p>'}</div>
+  ${miss.length?`<div class="card"><h4>Not logged yet</h4>${miss.map(x=>`<div class="mitem" data-k="${esc(x.key)}">
+    <div class="top"><div><b>${esc(x.payee)}</b><div class="small muted">${dayLabel(x.d)} · ${x.mode}</div></div><b>${inr(x.amt)}</b></div>
+    <div class="small muted" style="word-break:break-all">${esc(x.narr.slice(0,90))}</div>
+    <div class="mini">${S.cats.map(c=>`<button data-c="${c.id}" class="${c.id===x.cat?'on':''}" title="${esc(c.name)}">${c.emoji}</button>`).join('')}</div>
+    <div class="row"><button class="btn pri" data-act="add">Add</button><button class="btn" data-act="skip">Skip (transfer / not expense)</button></div></div>`).join('')}</div>`:''}`;
+}
+function addFromRec(x,c){S.expenses.push({id:uid(),amt:x.amt,cat:c,mode:x.mode,payee:x.payee,note:'',ts:x.d,src:'statement',status:'ok'});learn(x.payee,'',c);S.seen[x.key]=1;x.st='seen'}
+function bindRec(){
+  const out=$('#stOut');if(!out||!rec)return;
+  out.querySelectorAll('.mitem').forEach(el=>{const x=rec.find(r=>r.key===el.dataset.k);
+    bindPick(el.querySelector('.mini'),'data-c',c=>{x.cat=c});
+    el.querySelector('[data-act=add]').onclick=()=>{if(!x.cat){toast('Tap a category icon first');return}addFromRec(x,x.cat);save();render();toast('Added ✓')};
+    el.querySelector('[data-act=skip]').onclick=()=>{S.seen[x.key]='skip';x.st='seen';save();render()}});
+  const a=$('#addSug');if(a)a.onclick=()=>{let k=0;rec.filter(r=>r.st==='missing'&&r.cat).forEach(r=>{addFromRec(r,r.cat);k++});save();render();toast(k+' added ✓')};
+}
+
+/* ============ more ============ */
+function exportXlsx(list,fname){loadXLSX().then(()=>{
+  const rows=[...list].sort((a,b)=>a.ts-b.ts).map(e=>({Date:new Date(e.ts).toLocaleDateString('en-IN'),Time:e.src==='statement'?'':tm(e.ts),Amount:e.amt,Category:cat(e.cat).name,'Paid to':e.payee||'','UPI ID':e.vpa||'',Mode:e.mode,Note:e.note||'',Source:e.src||''}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Expenses');
+  const months=[...new Set(list.map(e=>ym(e.ts)))].sort();
+  const sm=S.cats.map(c=>{const o={Category:c.emoji+' '+c.name};months.forEach(m=>o[monthName(m)]=sum(list.filter(e=>e.cat===c.id&&ym(e.ts)===m)));o.Total=sum(list.filter(e=>e.cat===c.id));return o}).filter(o=>o.Total);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sm),'Summary');XLSX.writeFile(wb,fname+'.xlsx')}).catch(e=>toast(e.message))}
+function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.download=name;a.click()}
+function vMore(){
+  view.innerHTML=`<div class="card"><h4>📲 Install on your phone</h4><p class="small muted" style="margin:0">In Chrome tap <b>⋮ → Add to Home screen / Install app</b>. Then <b>long-press the Kharcha icon</b> for a direct “Scan &amp; Pay” shortcut.</p></div>
+  <div class="card"><h4>🏷️ Categories</h4>${S.cats.map(c=>`<div class="catrow"><div class="ico" style="background:${c.color}22">${c.emoji}</div><span>${esc(c.name)}</span>${c.id==='other'?'':`<button data-del="${c.id}">Remove</button>`}</div>`).join('')}
+  <div class="row"><input id="nEmoji" placeholder="🙂" style="width:64px;flex:none;text-align:center" maxlength="4"><input id="nName" placeholder="New category name"></div><button class="btn pri big" id="nAdd" style="margin-top:6px">Add category</button></div>
+  <div class="card"><h4>💾 Your data</h4><p class="small muted" style="margin-top:0">${okEx().length} expenses saved on this phone only. Take a backup now and then.</p>
+  <button class="btn ghost" id="xAll">⬇️ Export everything to Excel</button>
+  <button class="btn ghost" id="bk">💾 Backup (file)</button>
+  <label class="btn ghost">♻️ Restore from backup<input type="file" accept=".json,application/json" id="rs" hidden></label>
+  <button class="btn ghost" id="wipe" style="color:var(--red)">🗑️ Erase all data</button></div>
+  <p class="small muted" style="text-align:center">Kharcha · works offline · no login, no SMS reading</p>`;
+  view.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const c=cat(b.dataset.del);const n=S.expenses.filter(e=>e.cat===c.id).length;if(!confirm(`Remove “${c.name}”?`+(n?` ${n} expenses will move to Other.`:'')))return;S.expenses.forEach(e=>{if(e.cat===c.id)e.cat='other'});S.cats=S.cats.filter(x=>x.id!==c.id);Object.keys(S.rules).forEach(k=>{if(S.rules[k]===c.id)delete S.rules[k]});save();render()});
+  $('#nAdd').onclick=()=>{const nm=$('#nName').value.trim();if(!nm)return toast('Type a name');const col=['#0ea5e9','#f97316','#22c55e','#a855f7','#ec4899','#eab308','#14b8a6'][S.cats.length%7];S.cats.splice(S.cats.length-1,0,{id:'c'+uid(),name:nm,emoji:$('#nEmoji').value.trim()||'🏷️',color:col});save();render();toast('Category added')};
+  $('#xAll').onclick=()=>okEx().length?exportXlsx(okEx(),'Kharcha-all'):toast('Nothing to export yet');
+  $('#bk').onclick=()=>download('kharcha-backup-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(S));
+  $('#rs').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d.expenses))throw 0;if(!confirm(`Restore ${d.expenses.length} expenses? This replaces current data.`))return;S=d;S.cats=S.cats||DEF_CATS;S.rules=S.rules||{};S.seen=S.seen||{};save();render();toast('Restored ✓')}catch(e){toast('Not a valid Kharcha backup')}};
+  $('#wipe').onclick=()=>{if(confirm('Erase ALL expenses? Take a backup first!')&&confirm('Really erase everything?')){localStorage.removeItem(LS);S=load();rec=null;render();toast('Erased')}};
+}
+
+/* ============ start ============ */
+render();
+const qa=new URLSearchParams(location.search).get('a');
+if(qa==='scan')scanSheet();else if(qa==='add')addSheet();else if(S.pendingId)confirmSheet();
+if(qa)history.replaceState(null,'',location.pathname);
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
