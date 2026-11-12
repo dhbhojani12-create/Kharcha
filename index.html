@@ -218,7 +218,25 @@ const payPkg=()=>S.payApp||PAY_APPS[0][0];
 const payName=()=>(PAY_APPS.find(x=>x[0]===payPkg())||PAY_APPS[0])[1];
 const isShopQR=q=>q&&q.p&&q.p.get('mc')&&q.p.get('mc')!=='0000';
 function upiQS(q,amt,note){const p=new URLSearchParams(q.p);if(!parseAmt(p.get('am')))p.set('am',amt.toFixed(2));if(!p.get('cu'))p.set('cu','INR');if(!p.get('tn')&&note)p.set('tn',note.slice(0,40));return[...p].map(([k,v])=>k+'='+encodeURIComponent(v).replace(/%40/g,'@')).join('&')}
-function openPayApp(){askedAt=Date.now();openUPI(`intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${payPkg()};end`)}
+const FB=()=>encodeURIComponent(location.origin+location.pathname+'?launchfail=1');
+const LAUNCH={
+ 'com.samsung.android.spay':[['spay','Samsung link',()=>`intent://#Intent;scheme=samsungpay;package=com.samsung.android.spay;S.browser_fallback_url=${FB()};end`],
+   ['spay2','Samsung link (short)',()=>'samsungpay://'],
+   ['upi','UPI screen',()=>`intent://pay#Intent;scheme=upi;package=com.samsung.android.spay;S.browser_fallback_url=${FB()};end`]],
+ 'com.phonepe.app':[['pp','PhonePe link',()=>`intent://#Intent;scheme=phonepe;package=com.phonepe.app;S.browser_fallback_url=${FB()};end`]],
+ 'com.google.android.apps.nbu.paisa.user':[['gp','GPay link',()=>`intent://upi/#Intent;scheme=tez;package=com.google.android.apps.nbu.paisa.user;S.browser_fallback_url=${FB()};end`]],
+ 'net.one97.paytm':[['pt','Paytm link',()=>`intent://#Intent;scheme=paytmmp;package=net.one97.paytm;S.browser_fallback_url=${FB()};end`]],
+ 'in.org.npci.upiapp':[['bh','BHIM UPI screen',()=>`intent://pay#Intent;scheme=upi;package=in.org.npci.upiapp;S.browser_fallback_url=${FB()};end`]]};
+function launchUrl(id){const l=LAUNCH[payPkg()]||[];return((l.find(x=>x[0]===(id||S.launch))||l[0])[2])()}
+function openPayApp(id){askedAt=Date.now();openUPI(launchUrl(id))}
+function testLaunchSheet(){
+  const l=LAUNCH[payPkg()]||[];
+  openSheet(`<h3>🔧 Test opening ${payName()}</h3><p class="muted small" style="margin-top:0">Tap <b>Try</b> on each one. Whichever opens ${payName()} – come back and tap <b>Use this</b>.</p>
+  ${l.map(([id,n],i)=>`<div class="catrow"><span><b>${i+1}.</b> ${n}${(S.launch||l[0][0])===id?' <span class="tag">in use</span>':''}</span><button data-try="${id}" style="color:var(--pri);font-weight:600;padding:6px 10px">Try</button><button data-use="${id}" style="color:var(--ink);font-weight:600;padding:6px 10px">Use this</button></div>`).join('')}`,sh=>{
+    sh.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>openPayApp(b.dataset.try));
+    sh.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{S.launch=b.dataset.use;save();closeSheet();toast('Saved ✓ – Pay will use this')});
+  });
+}
 function openPrefilled(q,amt,note){askedAt=Date.now();openUPI(`intent://pay?${upiQS(q,amt,note)}#Intent;scheme=upi;package=${payPkg()};end`)}
 let draft={};
 function payForm(q){
@@ -254,10 +272,11 @@ function payNowSheet(e,q){
   <button class="btn pri big" id="nPaid">✅ Paid</button>
   <button class="btn ghost" id="nNo">❌ Didn't pay – remove it</button>
   <button class="btn ghost" id="nOpen">↗️ Open ${payName()} again</button>
+  <button class="btn ghost" id="nTest" style="font-size:13px">App didn't open? 🔧 Try other ways</button>
   ${q&&!isShopQR(q)?`<button class="btn ghost" id="nTry" style="font-size:13px">Try pre-filled payment (may be blocked for personal QRs)</button>`:''}`,sh=>{
     sh.querySelector('#nPaid').onclick=()=>{e.status='ok';if(S.pendingId===e.id)S.pendingId=null;save();closeSheet();render();toast('Saved ✓')};
     sh.querySelector('#nNo').onclick=()=>{S.expenses=S.expenses.filter(x=>x.id!==e.id);if(S.pendingId===e.id)S.pendingId=null;save();closeSheet();render();toast('Removed')};
-    sh.querySelector('#nOpen').onclick=openPayApp;
+    sh.querySelector('#nOpen').onclick=()=>openPayApp();sh.querySelector('#nTest').onclick=()=>{askedAt=Date.now();testLaunchSheet()};
     const t=sh.querySelector('#nTry');if(t)t.onclick=()=>openPrefilled(q,e.amt,e.note);
   });
 }
@@ -424,7 +443,7 @@ function exportXlsx(list,fname){loadXLSX().then(()=>{
 function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.download=name;a.click()}
 function vMore(){
   view.innerHTML=`<div class="card"><h4>📲 Install on your phone</h4><p class="small muted" style="margin:0">In Chrome tap <b>⋮ → Add to Home screen / Install app</b>. Then <b>long-press the Kharcha icon</b> for a direct “Pay” shortcut.</p></div>
-  <div class="card"><h4>💳 Payment app</h4><p class="small muted" style="margin-top:0">The app Kharcha opens when you tap Pay.</p><div class="chips" id="payApp">${PAY_APPS.map(([k,n])=>`<button data-p="${k}" class="${k===payPkg()?'on':''}">${n}</button>`).join('')}</div></div>
+  <div class="card"><h4>💳 Payment app</h4><p class="small muted" style="margin-top:0">The app Kharcha opens when you tap Pay.</p><div class="chips" id="payApp">${PAY_APPS.map(([k,n])=>`<button data-p="${k}" class="${k===payPkg()?'on':''}">${n}</button>`).join('')}</div><button class="btn ghost" id="tLaunch">🔧 Test opening the app</button></div>
   <div class="card"><h4>🏷️ Categories</h4>${S.cats.map(c=>`<div class="catrow"><div class="ico" style="background:${c.color}22">${c.emoji}</div><span>${esc(c.name)}</span>${c.id==='other'?'':`<button data-del="${c.id}">Remove</button>`}</div>`).join('')}
   <div class="row"><input id="nEmoji" placeholder="🙂" style="width:64px;flex:none;text-align:center" maxlength="4"><input id="nName" placeholder="New category name"></div><button class="btn pri big" id="nAdd" style="margin-top:6px">Add category</button></div>
   <div class="card"><h4>💾 Your data</h4><p class="small muted" style="margin-top:0">${okEx().length} expenses saved on this phone only. Take a backup now and then.</p>
@@ -433,7 +452,8 @@ function vMore(){
   <label class="btn ghost">♻️ Restore from backup<input type="file" accept=".json,application/json" id="rs" hidden></label>
   <button class="btn ghost" id="wipe" style="color:var(--red)">🗑️ Erase all data</button></div>
   <p class="small muted" style="text-align:center">Kharcha · works offline · no login, no SMS reading</p>`;
-  bindPick($('#payApp'),'data-p',k=>{S.payApp=k;save();toast(payName()+' selected')});
+  bindPick($('#payApp'),'data-p',k=>{S.payApp=k;S.launch=null;save();toast(payName()+' selected')});
+  $('#tLaunch').onclick=testLaunchSheet;
   view.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const c=cat(b.dataset.del);const n=S.expenses.filter(e=>e.cat===c.id).length;if(!confirm(`Remove “${c.name}”?`+(n?` ${n} expenses will move to Other.`:'')))return;S.expenses.forEach(e=>{if(e.cat===c.id)e.cat='other'});S.cats=S.cats.filter(x=>x.id!==c.id);Object.keys(S.rules).forEach(k=>{if(S.rules[k]===c.id)delete S.rules[k]});save();render()});
   $('#nAdd').onclick=()=>{const nm=$('#nName').value.trim();if(!nm)return toast('Type a name');const col=['#0ea5e9','#f97316','#22c55e','#a855f7','#ec4899','#eab308','#14b8a6'][S.cats.length%7];S.cats.splice(S.cats.length-1,0,{id:'c'+uid(),name:nm,emoji:$('#nEmoji').value.trim()||'🏷️',color:col});save();render();toast('Category added')};
   $('#xAll').onclick=()=>okEx().length?exportXlsx(okEx(),'Kharcha-all'):toast('Nothing to export yet');
@@ -445,8 +465,9 @@ function vMore(){
 /* ============ start ============ */
 render();
 const qa=new URLSearchParams(location.search).get('a');
-if(qa==='scan'||qa==='pay')payForm();else if(qa==='add')addSheet();else if(S.pendingId)confirmSheet();
-if(qa)history.replaceState(null,'',location.pathname);
+if(new URLSearchParams(location.search).get('launchfail')){toast('Could not open the app that way – try More → 🔧 Test');if(S.pendingId)setTimeout(()=>confirmSheet(),300)}
+else if(qa==='scan'||qa==='pay')payForm();else if(qa==='add')addSheet();else if(S.pendingId)confirmSheet();
+if(location.search)history.replaceState(null,'',location.pathname);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
