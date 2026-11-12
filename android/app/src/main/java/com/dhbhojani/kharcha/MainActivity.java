@@ -279,7 +279,20 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String version() {
-            return "3";
+            return "4";
+        }
+
+        @JavascriptInterface
+        public boolean hasAccessibility() {
+            String f = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            return f != null && f.contains(getPackageName());
+        }
+
+        @JavascriptInterface
+        public void openAccessibilitySettings() {
+            Intent i = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            runOnUiThread(() -> startActivity(i));
         }
 
         @JavascriptInterface
@@ -308,7 +321,7 @@ public class MainActivity extends Activity {
         public void testPopup() {
             runOnUiThread(() -> {
                 if (!Settings.canDrawOverlays(MainActivity.this)) { toast("Turn on 'Appear on top' first"); return; }
-                Popup.show(MainActivity.this, "Test: You paid ₹10 to Test Shop", -1, null);
+                Popup.show(MainActivity.this, "Test: You paid ₹10 to Test Shop", -1, null, android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
             });
         }
 

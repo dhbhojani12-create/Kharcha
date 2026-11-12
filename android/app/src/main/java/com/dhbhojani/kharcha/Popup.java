@@ -42,7 +42,7 @@ public class Popup {
         return g;
     }
 
-    static void show(Context c, String text, long ts, OnLater onLater) {
+    static void show(Context c, String text, long ts, OnLater onLater, int winType) {
         WindowManager wm = (WindowManager) c.getSystemService(Context.WINDOW_SERVICE);
         if (showing != null) {
             try { wm.removeView(showing); } catch (Exception ignored) { }
@@ -69,11 +69,20 @@ public class Popup {
         card.setElevation(dp(c, 14));
         root.addView(card);
 
+        LinearLayout headRow = new LinearLayout(c);
+        headRow.setGravity(Gravity.CENTER_VERTICAL);
         TextView head = new TextView(c);
         head.setText("💸 Kharcha · just paid");
         head.setTextColor(Color.parseColor("#64748B"));
         head.setTextSize(12);
-        card.addView(head);
+        headRow.addView(head, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        TextView ignore = new TextView(c);
+        ignore.setText("✕ Not an expense");
+        ignore.setTextColor(Color.parseColor("#DC2626"));
+        ignore.setTextSize(12);
+        ignore.setPadding(dp(c, 8), dp(c, 4), 0, dp(c, 4));
+        headRow.addView(ignore);
+        card.addView(headRow);
 
         LinearLayout amtRow = new LinearLayout(c);
         amtRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -160,12 +169,16 @@ public class Popup {
         WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                winType,
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
                 PixelFormat.TRANSLUCENT);
         lp.gravity = Gravity.BOTTOM;
         lp.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE | WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN;
 
+        ignore.setOnClickListener(v -> {
+            close(wm, root);
+            if (ts >= 0) PayListener.remove(c, ts);
+        });
         later.setOnClickListener(v -> {
             close(wm, root);
             if (onLater != null) onLater.later();

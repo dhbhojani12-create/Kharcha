@@ -319,12 +319,12 @@ function vHome(){
   const recent=[...S.expenses].sort((a,b)=>b.ts-a.ts).slice(0,80);
   view.innerHTML=`<section class="hero"><div><small>Spent in ${monthName(m)}</small><h1>${inr(sum(mon))}</h1></div><div class="today"><small>Today</small><b>${inr(sum(today))}</b></div></section>
   <div class="actions"><button class="act scan" id="hScan">💸<span>Pay</span></button><button class="act" id="hAdd">➕<span>Quick Add</span></button></div>
-  ${APP&&!APP.hasNotifAccess()?`<button class="warn" id="hAcc">🔔 Turn on auto-capture – tap here</button>`:''}${APP&&APP.hasNotifAccess()&&APP.canOverlay&&!APP.canOverlay()?`<button class="warn" id="hOv">🪟 Turn on pop-up after payment – tap here</button>`:''}
+  ${APP&&APP.hasAccessibility&&!APP.hasAccessibility()?`<button class="warn" id="hInst">⚡ Turn on instant capture – tap here</button>`:''}${APP&&!APP.hasNotifAccess()?`<button class="warn" id="hAcc">🔔 Turn on auto-capture – tap here</button>`:''}${APP&&APP.hasNotifAccess()&&APP.canOverlay&&!APP.canOverlay()?`<button class="warn" id="hOv">🪟 Turn on pop-up after payment – tap here</button>`:''}
   ${pend.length?`<button class="warn" id="hPend">⏳ ${pend.length} payment${pend.length>1?'s':''} waiting – tap to confirm</button>`:''}
   <div id="hList">${groupList(recent)}</div>`;
   $('#hScan').onclick=()=>{draft={};payForm()};$('#hAdd').onclick=()=>addSheet();
   if(pend.length)$('#hPend').onclick=()=>confirmSheet(pend[0]);
-  const ha=$('#hAcc');if(ha)ha.onclick=()=>APP.openNotifSettings();const ho=$('#hOv');if(ho)ho.onclick=()=>APP.openOverlaySettings();
+  const ha=$('#hAcc');if(ha)ha.onclick=()=>APP.openNotifSettings();const ho=$('#hOv');if(ho)ho.onclick=()=>APP.openOverlaySettings();const hi=$('#hInst');if(hi)hi.onclick=()=>{tab='more';render()};
   bindItems($('#hList'));
 }
 
@@ -450,6 +450,7 @@ function vMore(){
   view.innerHTML=`${APP?`<div class="card"><h4>🔔 Auto-capture payments</h4><p class="small muted" style="margin-top:0">Kharcha reads the “paid ₹…” notification from GPay / PhonePe / Samsung Wallet / bank apps and asks you only for the category.</p>
   <p style="margin:6px 0"><b>${APP.hasNotifAccess()?'✅ ON':'❌ OFF – tap below and turn on Kharcha'}</b></p>
   <button class="btn ${APP.hasNotifAccess()?'ghost':'pri big'}" id="nAcc">${APP.hasNotifAccess()?'Notification access settings':'Turn on notification access'}</button>
+  ${APP.hasAccessibility?`<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:10px;margin:8px 0"><b>⚡ Instant capture (reads payment success screen): ${APP.hasAccessibility()?'✅ ON':'❌ OFF'}</b><p class="small muted" style="margin:4px 0">Fastest & most accurate – amount + name read the moment “Sent” shows. Works only inside Samsung Wallet, GPay, PhonePe, Paytm, BHIM.</p>${APP.hasAccessibility()?'':'<button class="btn pri big" id="accB">Turn on instant capture</button><p class="small muted" style="margin:6px 0 0">Settings → Accessibility → Installed apps → <b>Kharcha</b> → On. If it is greyed out: App info → ⋮ → Allow restricted settings.</p><button class="btn ghost" id="accInfo">App info</button>'}</div>`:''}
   <p style="margin:10px 0 4px"><b>🪟 Pop-up over other apps: ${APP.canOverlay&&APP.canOverlay()?'✅ ON':'❌ OFF'}</b></p>
   ${APP.canOverlay?(APP.canOverlay()?'<button class="btn ghost" id="tPop">Show a test pop-up</button>':'<button class="btn pri big" id="ovB">Turn on “Appear on top”</button>'):''}
   <div class="chips" style="margin-top:10px"><button id="smsT" class="${APP.getReadSms()?'on':''}">📩 Also read bank SMS alerts</button></div>${APP.getLog?'<button class="btn ghost" id="diagB">🩺 Check auto-capture</button>':''}</div>`:`<div class="card"><h4>🤖 Android app (auto-capture)</h4><p class="small muted" style="margin-top:0">Install the Kharcha Android app to log payments automatically from GPay notifications – no double scanning.</p><a class="btn pri big" href="${APK_URL}" style="text-decoration:none">⬇️ Download Kharcha.apk</a></div>`}
@@ -462,10 +463,10 @@ function vMore(){
   <button class="btn ghost" id="bk">💾 Backup (file)</button>
   <label class="btn ghost">♻️ Restore from backup<input type="file" accept=".json,application/json" id="rs" hidden></label>
   <button class="btn ghost" id="wipe" style="color:var(--red)">🗑️ Erase all data</button></div>
-  <p class="small muted" style="text-align:center">Kharcha web v8 · works offline · no login</p>`;
+  <p class="small muted" style="text-align:center">Kharcha web v9 · works offline · no login</p>`;
   bindPick($('#payApp'),'data-p',k=>{S.payApp=k;S.launch=null;save();toast(payName()+' selected')});
   $('#tLaunch').onclick=testLaunchSheet;
-  if(APP){$('#nAcc').onclick=()=>APP.openNotifSettings();$('#smsT').onclick=()=>{APP.setReadSms(!APP.getReadSms());render()};const db=$('#diagB');if(db)db.onclick=diagSheet;const ob=$('#ovB');if(ob)ob.onclick=()=>APP.openOverlaySettings();const tp=$('#tPop');if(tp)tp.onclick=()=>APP.testPopup()}
+  if(APP){$('#nAcc').onclick=()=>APP.openNotifSettings();$('#smsT').onclick=()=>{APP.setReadSms(!APP.getReadSms());render()};const db=$('#diagB');if(db)db.onclick=diagSheet;const ob=$('#ovB');if(ob)ob.onclick=()=>APP.openOverlaySettings();const tp=$('#tPop');if(tp)tp.onclick=()=>APP.testPopup();const ab=$('#accB');if(ab)ab.onclick=()=>APP.openAccessibilitySettings();const ai=$('#accInfo');if(ai)ai.onclick=()=>APP.openAppInfo()}
   view.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const c=cat(b.dataset.del);const n=S.expenses.filter(e=>e.cat===c.id).length;if(!confirm(`Remove “${c.name}”?`+(n?` ${n} expenses will move to Other.`:'')))return;S.expenses.forEach(e=>{if(e.cat===c.id)e.cat='other'});S.cats=S.cats.filter(x=>x.id!==c.id);Object.keys(S.rules).forEach(k=>{if(S.rules[k]===c.id)delete S.rules[k]});save();render()});
   $('#nAdd').onclick=()=>{const nm=$('#nName').value.trim();if(!nm)return toast('Type a name');const col=['#0ea5e9','#f97316','#22c55e','#a855f7','#ec4899','#eab308','#14b8a6'][S.cats.length%7];S.cats.splice(S.cats.length-1,0,{id:'c'+uid(),name:nm,emoji:$('#nEmoji').value.trim()||'🏷️',color:col});save();render();toast('Category added')};
   $('#xAll').onclick=()=>okEx().length?exportXlsx(okEx(),'Kharcha-all'):toast('Nothing to export yet');
@@ -497,7 +498,7 @@ const PKGN={'com.google.android.apps.nbu.paisa.user':'Google Pay','com.phonepe.a
 function diagSheet(){
   const on=APP.hasNotifAccess(),c=APP.listenerConnectedAt?APP.listenerConnectedAt():0;let log=[];try{log=JSON.parse(APP.getLog())}catch(e){}
   openSheet(`<h3>🩺 Auto-capture check</h3>
-  <div class="card" style="margin:6px 0"><div>1. Notification access: <b>${on?'✅ ON':'❌ OFF'}</b></div><div>2. Reader running: <b>${c?'✅ since '+dayLabel(c)+' '+tm(c):'❌ not started'}</b></div><div>3. SMS alerts: <b>${APP.getReadSms()?'✅ ON':'OFF'}</b></div></div>
+  <div class="card" style="margin:6px 0"><div>1. Notification access: <b>${on?'✅ ON':'❌ OFF'}</b></div><div>2. Reader running: <b>${c?'✅ since '+dayLabel(c)+' '+tm(c):'❌ not started'}</b></div><div>⚡ Instant capture: <b>${APP.hasAccessibility&&APP.hasAccessibility()?'✅ ON':'❌ OFF'}</b></div><div>3. SMS alerts: <b>${APP.getReadSms()?'✅ ON':'OFF'}</b></div></div>
   ${on?'':`<div class="warn" style="cursor:default">If the Kharcha switch is <b>greyed out</b> (“Restricted setting”): tap <b>App info</b> below → <b>⋮</b> (top-right) → <b>Allow restricted settings</b> → then turn access on.</div><button class="btn pri big" id="dAcc">Turn on notification access</button><button class="btn ghost" id="dInfo">App info (for restricted setting)</button>`}
   ${on&&!c?`<p class="small muted">Access is on but the reader hasn't started – turn the Kharcha switch OFF and ON again, or restart the phone.</p><button class="btn ghost" id="dAcc">Open notification access</button>`:''}
   <h4 style="margin:14px 0 4px">Money notifications seen (latest first)</h4>

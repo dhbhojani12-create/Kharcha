@@ -80,6 +80,10 @@ public class PayListener extends NotificationListenerService {
             // Payment app said "payment complete" but gave no amount (e.g. Samsung Wallet):
             // start a capture now, wait briefly for the bank SMS to supply the amount.
             if (payApp && !summary && !money && OUT.matcher(all).find() && DONE.matcher(all).find() && !NOT.matcher(all).find()) {
+                if (Capture.sameRecent(now, 0, Parse.payee(all))) {
+                    log(this, pkg, all, "already captured from screen");
+                    return;
+                }
                 if (walletText != null && now - walletTs < 90 * 1000
                         && Parse.key(Parse.payee(all)).equals(Parse.key(Parse.payee(walletText)))) {
                     log(this, pkg, all, "duplicate");
@@ -94,7 +98,7 @@ public class PayListener extends NotificationListenerService {
                     walletShown = true;
                     capture(walletText, walletTs);
                 };
-                H.postDelayed(walletRun, 25 * 1000);
+                H.postDelayed(walletRun, 10 * 1000);
                 return;
             }
 
@@ -118,6 +122,10 @@ public class PayListener extends NotificationListenerService {
             last = all;
             lastTs = now;
 
+            if (walletText == null && Capture.sameRecent(now, Parse.amount(all), Parse.payee(all))) {
+                log(this, pkg, all, Popup.setAmount(Parse.amount(all)) ? "amount added to pop-up" : "already captured");
+                return;
+            }
             // Amount arrived for a recent "payment complete" from the wallet app → merge.
             if (walletText != null && now - walletTs < 3 * 60 * 1000) {
                 double a = Parse.amount(all);
@@ -165,15 +173,7 @@ public class PayListener extends NotificationListenerService {
     }
 
     void capture(String txt, long ts) {
-        add(this, txt, ts);
-        if (Settings.canDrawOverlays(this)) {
-            H.post(() -> {
-                try { Popup.show(PayListener.this, txt, ts, () -> notifyUser(txt)); }
-                catch (Exception e) { notifyUser(txt); }
-            });
-        } else {
-            notifyUser(txt);
-        }
+        Capture.go(this, txt, ts, false);
     }
 
     static String str(CharSequence c) {
@@ -218,6 +218,15 @@ public class PayListener extends NotificationListenerService {
         o.put("done", true); o.put("amt", amt); o.put("payee", payee); o.put("cat", cat); o.put("note", note);
     }
 
+    static synchronized void remove(Context c, long ts) {
+        SharedPreferences p = c.getSharedPreferences("k", MODE_PRIVATE);
+        try {
+            JSONArray a = new JSONArray(p.getString("q", "[]")), b = new JSONArray();
+            for (int i = 0; i < a.length(); i++) if (a.getJSONObject(i).optLong("ts") != ts) b.put(a.get(i));
+            p.edit().putString("q", b.toString()).apply();
+        } catch (Exception ignored) { }
+    }
+
     static synchronized String take(Context c) {
         SharedPreferences p = c.getSharedPreferences("k", MODE_PRIVATE);
         String s = p.getString("q", "[]");
@@ -225,14 +234,16 @@ public class PayListener extends NotificationListenerService {
         return s;
     }
 
-    void notifyUser(String t) {
-        NotificationManager nm = getSystemService(NotificationManager.class);
+    void notifyUser(String t) { notifyUser(this, t); }
+
+    static void notifyUser(Context ctx, String t) {
+        NotificationManager nm = ctx.getSystemService(NotificationManager.class);
         nm.createNotificationChannel(new NotificationChannel("pay", "Payments to tag", NotificationManager.IMPORTANCE_HIGH));
-        Intent i = new Intent(this, MainActivity.class);
+        Intent i = new Intent(ctx, MainActivity.class);
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent pi = PendingIntent.getActivity(this, 0, i,
+        PendingIntent pi = PendingIntent.getActivity(ctx, 0, i,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-        Notification n = new Notification.Builder(this, "pay")
+        Notification n = new Notification.Builder(ctx, "pay")
                 .setSmallIcon(android.R.drawable.ic_menu_edit)
                 .setContentTitle("💸 Tag this payment")
                 .setContentText(t.replace("\n", " · "))
