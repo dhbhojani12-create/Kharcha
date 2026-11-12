@@ -2,6 +2,7 @@ package com.dhbhojani.kharcha;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -14,6 +15,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.provider.Settings;
+import android.service.notification.NotificationListenerService;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
@@ -124,6 +126,11 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (web != null) web.evaluateJavascript("window.kharchaPoll&&kharchaPoll()", null);
+        try {
+            String f = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
+            if (f != null && f.contains(getPackageName()))
+                NotificationListenerService.requestRebind(new ComponentName(this, PayListener.class));
+        } catch (Exception ignored) { }
     }
 
     void handle(Intent i, boolean first) {
