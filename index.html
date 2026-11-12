@@ -112,6 +112,8 @@ ol.steps{padding-left:20px;margin:6px 0;color:var(--mut)}ol.steps li{margin:4px 
 const LS='kharcha.v1';
 const DEF_CATS=[['food','Food','🍔','#f97316'],['groc','Groceries','🛒','#84cc16'],['travel','Travel','🚕','#0ea5e9'],['shop','Shopping','🛍️','#ec4899'],['bills','Bills & Recharge','💡','#eab308'],['study','Study','📚','#6366f1'],['health','Health','💊','#ef4444'],['fun','Fun','🎬','#a855f7'],['friends','Friends','🤝','#14b8a6'],['home','Home','🏠','#78716c'],['gift','Gifts','🎁','#f43f5e'],['other','Other','📦','#64748b']].map(([id,name,emoji,color])=>({id,name,emoji,color}));
 const MODES=['UPI','Cash','Card','Bank'];
+const APP=window.KharchaApp||null;
+const APK_URL='https://github.com/dhbhojani12-create/Kharcha/releases/download/apk/Kharcha.apk';
 let S=load();
 function load(){try{const s=JSON.parse(localStorage.getItem(LS));if(s&&Array.isArray(s.expenses)){s.cats=s.cats||DEF_CATS;s.rules=s.rules||{};s.seen=s.seen||{};return s}}catch(e){}return{v:1,expenses:[],cats:DEF_CATS.slice(),rules:{},seen:{},pendingId:null}}
 function save(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){toast('⚠️ Could not save – storage full?')}}
@@ -158,7 +160,7 @@ const parseAmt=v=>{const n=parseFloat(String(v).replace(/[^0-9.]/g,''));return i
 /* ============ sheet (bottom modal) ============ */
 let camStream=null,scanning=false;
 function openSheet(html,mount){$('#sheet').innerHTML='<div class="grab"></div>'+html;$('#ov').classList.remove('hidden');mount&&mount($('#sheet'))}
-function closeSheet(){stopCam();$('#ov').classList.add('hidden');$('#sheet').innerHTML=''}
+function closeSheet(){stopCam();$('#ov').classList.add('hidden');$('#sheet').innerHTML='';if(Q.length)setTimeout(nextQueued,350)}
 $('#ov').addEventListener('click',e=>{if(e.target.id==='ov')closeSheet()});
 
 /* ============ add / edit ============ */
@@ -228,7 +230,7 @@ const LAUNCH={
  'net.one97.paytm':[['pt','Paytm link',()=>`intent://#Intent;scheme=paytmmp;package=net.one97.paytm;S.browser_fallback_url=${FB()};end`]],
  'in.org.npci.upiapp':[['bh','BHIM UPI screen',()=>`intent://pay#Intent;scheme=upi;package=in.org.npci.upiapp;S.browser_fallback_url=${FB()};end`]]};
 function launchUrl(id){const l=LAUNCH[payPkg()]||[];return((l.find(x=>x[0]===(id||S.launch))||l[0])[2])()}
-function openPayApp(id){askedAt=Date.now();openUPI(launchUrl(id))}
+function openPayApp(id){askedAt=Date.now();if(APP&&!id){if(!APP.openApp(payPkg()))toast(payName()+' is not installed');return}openUPI(launchUrl(id))}
 function testLaunchSheet(){
   const l=LAUNCH[payPkg()]||[];
   openSheet(`<h3>🔧 Test opening ${payName()}</h3><p class="muted small" style="margin-top:0">Tap <b>Try</b> on each one. Whichever opens ${payName()} – come back and tap <b>Use this</b>.</p>
@@ -237,7 +239,7 @@ function testLaunchSheet(){
     sh.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{S.launch=b.dataset.use;save();closeSheet();toast('Saved ✓ – Pay will use this')});
   });
 }
-function openPrefilled(q,amt,note){askedAt=Date.now();openUPI(`intent://pay?${upiQS(q,amt,note)}#Intent;scheme=upi;package=${payPkg()};end`)}
+function openPrefilled(q,amt,note){askedAt=Date.now();if(APP){APP.openUpi('upi://pay?'+upiQS(q,amt,note),payPkg());return}openUPI(`intent://pay?${upiQS(q,amt,note)}#Intent;scheme=upi;package=${payPkg()};end`)}
 let draft={};
 function payForm(q){
   const name=q?(q.pn||q.pa):'';const fixed=q&&parseAmt(q.am)>0;const sug=(q&&suggest(q.pn,q.pa))||draft.cat||'';
@@ -316,10 +318,12 @@ function vHome(){
   const recent=[...S.expenses].sort((a,b)=>b.ts-a.ts).slice(0,80);
   view.innerHTML=`<section class="hero"><div><small>Spent in ${monthName(m)}</small><h1>${inr(sum(mon))}</h1></div><div class="today"><small>Today</small><b>${inr(sum(today))}</b></div></section>
   <div class="actions"><button class="act scan" id="hScan">💸<span>Pay</span></button><button class="act" id="hAdd">➕<span>Quick Add</span></button></div>
+  ${APP&&!APP.hasNotifAccess()?`<button class="warn" id="hAcc">🔔 Turn on auto-capture – tap here</button>`:''}
   ${pend.length?`<button class="warn" id="hPend">⏳ ${pend.length} payment${pend.length>1?'s':''} waiting – tap to confirm</button>`:''}
   <div id="hList">${groupList(recent)}</div>`;
   $('#hScan').onclick=()=>{draft={};payForm()};$('#hAdd').onclick=()=>addSheet();
   if(pend.length)$('#hPend').onclick=()=>confirmSheet(pend[0]);
+  const ha=$('#hAcc');if(ha)ha.onclick=()=>APP.openNotifSettings();
   bindItems($('#hList'));
 }
 
@@ -439,10 +443,14 @@ function exportXlsx(list,fname){loadXLSX().then(()=>{
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Expenses');
   const months=[...new Set(list.map(e=>ym(e.ts)))].sort();
   const sm=S.cats.map(c=>{const o={Category:c.emoji+' '+c.name};months.forEach(m=>o[monthName(m)]=sum(list.filter(e=>e.cat===c.id&&ym(e.ts)===m)));o.Total=sum(list.filter(e=>e.cat===c.id));return o}).filter(o=>o.Total);
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sm),'Summary');XLSX.writeFile(wb,fname+'.xlsx')}).catch(e=>toast(e.message))}
-function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.download=name;a.click()}
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sm),'Summary');if(APP)APP.saveFile(fname+'.xlsx',XLSX.write(wb,{type:'base64',bookType:'xlsx'}),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');else XLSX.writeFile(wb,fname+'.xlsx')}).catch(e=>toast(e.message))}
+function download(name,text){if(APP){APP.saveFile(name,btoa(unescape(encodeURIComponent(text))),'application/json');return}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.download=name;a.click()}
 function vMore(){
-  view.innerHTML=`<div class="card"><h4>📲 Install on your phone</h4><p class="small muted" style="margin:0">In Chrome tap <b>⋮ → Add to Home screen / Install app</b>. Then <b>long-press the Kharcha icon</b> for a direct “Pay” shortcut.</p></div>
+  view.innerHTML=`${APP?`<div class="card"><h4>🔔 Auto-capture payments</h4><p class="small muted" style="margin-top:0">Kharcha reads the “paid ₹…” notification from GPay / PhonePe / Samsung Wallet / bank apps and asks you only for the category.</p>
+  <p style="margin:6px 0"><b>${APP.hasNotifAccess()?'✅ ON':'❌ OFF – tap below and turn on Kharcha'}</b></p>
+  <button class="btn ${APP.hasNotifAccess()?'ghost':'pri big'}" id="nAcc">${APP.hasNotifAccess()?'Notification access settings':'Turn on notification access'}</button>
+  <div class="chips" style="margin-top:10px"><button id="smsT" class="${APP.getReadSms()?'on':''}">📩 Also read bank SMS alerts</button></div></div>`:`<div class="card"><h4>🤖 Android app (auto-capture)</h4><p class="small muted" style="margin-top:0">Install the Kharcha Android app to log payments automatically from GPay notifications – no double scanning.</p><a class="btn pri big" href="${APK_URL}" style="text-decoration:none">⬇️ Download Kharcha.apk</a></div>`}
+  <div class="card"><h4>📲 Install on your phone</h4><p class="small muted" style="margin:0">In Chrome tap <b>⋮ → Add to Home screen / Install app</b>. Then <b>long-press the Kharcha icon</b> for a direct “Pay” shortcut.</p></div>
   <div class="card"><h4>💳 Payment app</h4><p class="small muted" style="margin-top:0">The app Kharcha opens when you tap Pay.</p><div class="chips" id="payApp">${PAY_APPS.map(([k,n])=>`<button data-p="${k}" class="${k===payPkg()?'on':''}">${n}</button>`).join('')}</div><button class="btn ghost" id="tLaunch">🔧 Test opening the app</button></div>
   <div class="card"><h4>🏷️ Categories</h4>${S.cats.map(c=>`<div class="catrow"><div class="ico" style="background:${c.color}22">${c.emoji}</div><span>${esc(c.name)}</span>${c.id==='other'?'':`<button data-del="${c.id}">Remove</button>`}</div>`).join('')}
   <div class="row"><input id="nEmoji" placeholder="🙂" style="width:64px;flex:none;text-align:center" maxlength="4"><input id="nName" placeholder="New category name"></div><button class="btn pri big" id="nAdd" style="margin-top:6px">Add category</button></div>
@@ -454,6 +462,7 @@ function vMore(){
   <p class="small muted" style="text-align:center">Kharcha · works offline · no login, no SMS reading</p>`;
   bindPick($('#payApp'),'data-p',k=>{S.payApp=k;S.launch=null;save();toast(payName()+' selected')});
   $('#tLaunch').onclick=testLaunchSheet;
+  if(APP){$('#nAcc').onclick=()=>APP.openNotifSettings();$('#smsT').onclick=()=>{APP.setReadSms(!APP.getReadSms());render()}}
   view.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const c=cat(b.dataset.del);const n=S.expenses.filter(e=>e.cat===c.id).length;if(!confirm(`Remove “${c.name}”?`+(n?` ${n} expenses will move to Other.`:'')))return;S.expenses.forEach(e=>{if(e.cat===c.id)e.cat='other'});S.cats=S.cats.filter(x=>x.id!==c.id);Object.keys(S.rules).forEach(k=>{if(S.rules[k]===c.id)delete S.rules[k]});save();render()});
   $('#nAdd').onclick=()=>{const nm=$('#nName').value.trim();if(!nm)return toast('Type a name');const col=['#0ea5e9','#f97316','#22c55e','#a855f7','#ec4899','#eab308','#14b8a6'][S.cats.length%7];S.cats.splice(S.cats.length-1,0,{id:'c'+uid(),name:nm,emoji:$('#nEmoji').value.trim()||'🏷️',color:col});save();render();toast('Category added')};
   $('#xAll').onclick=()=>okEx().length?exportXlsx(okEx(),'Kharcha-all'):toast('Nothing to export yet');
@@ -473,21 +482,26 @@ function parseNotif(t){
   if(p)payee=p[1].trim();
   return{amt,payee};
 }
-function logFromText(t,src){
+function logFromText(t,src,ts){
   const{amt,payee}=parseNotif(t);
   if(!amt){addSheet({note:String(t||'').slice(0,60),src});toast('Could not read the amount – please type it');return}
-  const dup=S.expenses.find(e=>Math.abs(e.amt-amt)<0.5&&Math.abs(Date.now()-e.ts)<4*60*1000);
+  const dup=S.expenses.find(e=>Math.abs(e.amt-amt)<0.5&&Math.abs((ts||Date.now())-e.ts)<6*60*1000);
   if(dup){toast('Already logged – opening it');dup.status==='pending'?confirmSheet(dup):addSheet(dup);return}
-  addSheet({amt,payee,cat:suggest(payee),mode:'UPI',ts:Date.now(),src});
+  addSheet({amt,payee,cat:suggest(payee),mode:'UPI',ts:ts||Date.now(),src});
 }
+let Q=[];
+function nextQueued(){if(!Q.length||!$('#ov').classList.contains('hidden'))return;const it=Q.shift();logFromText(it.t,'auto',it.ts);if(Q.length)setTimeout(()=>toast(Q.length+' more payment'+(Q.length>1?'s':'')+' to tag'),400)}
+window.kharchaPoll=function(){if(!APP)return;try{const a=JSON.parse(APP.takePending()||'[]');if(a.length){Q.push(...a);nextQueued()}}catch(e){}};
+async function ocrBlob(blob){openSheet('<h3>Reading receipt…</h3><p class="muted">Finding amount and name (first time takes ~10 sec)</p>');
+  try{await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');const r=await Tesseract.recognize(blob,'eng');closeSheet();logFromText(r.data.text,'share')}
+  catch(e){closeSheet();toast('Could not read the screenshot');addSheet({src:'share'})}}
+window.kharchaImage=function(d){fetch(d).then(r=>r.blob()).then(ocrBlob)};
 async function handleShare(){
   let d={},blob=null;
   try{const c=await caches.open('kharcha-share');const r=await c.match('./shared-text');if(r)d=await r.json();const f=await c.match('./shared-file');if(f)blob=await f.blob();await c.delete('./shared-text');await c.delete('./shared-file')}catch(e){}
   const txt=[d.title,d.text].filter(Boolean).join('\n');
   if(parseNotif(txt).amt)return logFromText(txt,'share');
-  if(blob){openSheet('<h3>Reading receipt…</h3><p class="muted">Finding amount and name (first time takes ~10 sec)</p>');
-    try{await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');const r=await Tesseract.recognize(blob,'eng');closeSheet();logFromText(r.data.text,'share')}
-    catch(e){closeSheet();toast('Could not read the screenshot');addSheet({src:'share'})}return}
+  if(blob)return ocrBlob(blob);
   if(txt)logFromText(txt,'share');else addSheet({src:'share'});
 }
 
@@ -499,7 +513,8 @@ else if(qa==='log')logFromText(new URLSearchParams(location.search).get('t')||''
 else if(qa==='share')handleShare();
 else if(qa==='scan'||qa==='pay')payForm();else if(qa==='add')addSheet();else if(S.pendingId)confirmSheet();
 if(location.search)history.replaceState(null,'',location.pathname);
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if(APP){setTimeout(()=>window.kharchaPoll(),600);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(()=>{window.kharchaPoll();render()},400)})}
+if(!APP&&'serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
 </html>
