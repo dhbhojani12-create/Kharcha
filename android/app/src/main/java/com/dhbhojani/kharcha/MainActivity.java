@@ -246,23 +246,33 @@ public class MainActivity extends Activity {
             }
         }
 
-        /** Send a file to another app (e.g. PoolDrive). pkg empty = let the user choose. */
+        /** Send a file to another app (e.g. PoolDrive). Saved in Downloads first, then shared from there. */
         @JavascriptInterface
         public boolean shareFile(String name, String b64, String mime, String pkg) {
             try {
-                File f = writeCache(name, b64);
+                ContentValues cv = new ContentValues();
+                cv.put(MediaStore.Downloads.DISPLAY_NAME, name);
+                cv.put(MediaStore.Downloads.MIME_TYPE, mime);
+                cv.put(MediaStore.Downloads.RELATIVE_PATH, "Download/Kharcha");
+                Uri u = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                if (u == null) { toast("Could not prepare file"); return false; }
+                try (OutputStream o = getContentResolver().openOutputStream(u)) {
+                    o.write(Base64.decode(b64, Base64.DEFAULT));
+                }
                 Intent i = new Intent(Intent.ACTION_SEND);
                 i.setType(mime);
-                i.putExtra(Intent.EXTRA_STREAM, FilesProvider.uriFor(f));
-                i.putExtra(Intent.EXTRA_SUBJECT, name);
+                i.putExtra(Intent.EXTRA_STREAM, u);
+                i.putExtra(Intent.EXTRA_TITLE, name);
+                i.setClipData(android.content.ClipData.newRawUri(name, u));
                 i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
                 Intent go = i;
                 if (pkg != null && !pkg.isEmpty() && hasApp(pkg)) i.setPackage(pkg);
-                else go = Intent.createChooser(i, "Send backup to").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                else go = Intent.createChooser(i, "Send backup to").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 final Intent run = go;
                 runOnUiThread(() -> {
                     try { startActivity(run); } catch (Exception e) { toast("Could not open the app"); }
                 });
+                toast("Also saved in Downloads/Kharcha");
                 return true;
             } catch (Exception e) {
                 toast("Could not prepare file");
