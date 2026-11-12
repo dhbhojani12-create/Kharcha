@@ -9,11 +9,59 @@
   "background_color": "#f4f6f8",
   "theme_color": "#0f766e",
   "icons": [
-    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
-    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ],
   "shortcuts": [
-    {"name": "Pay", "short_name": "Pay", "url": "./?a=pay", "icons": [{"src": "icon-192.png", "sizes": "192x192"}]},
-    {"name": "Quick Add", "short_name": "Quick Add", "url": "./?a=add", "icons": [{"src": "icon-192.png", "sizes": "192x192"}]}
-  ]
+    {
+      "name": "Pay",
+      "short_name": "Pay",
+      "url": "./?a=pay",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Quick Add",
+      "short_name": "Quick Add",
+      "url": "./?a=add",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "./?a=share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "files",
+          "accept": [
+            "image/*"
+          ]
+        }
+      ]
+    }
+  }
 }

@@ -179,7 +179,7 @@ function addSheet(e){
       const amt=parseAmt(sh.querySelector('#fAmt').value);if(!amt){toast('Enter an amount');return}
       const c=picked(cats,'data-c');if(!c){cats.classList.add('err');toast('Pick a category');return}
       const rec={...x,amt,cat:c,mode:picked(sh.querySelector('#fMode'),'data-m')||'UPI',payee:sh.querySelector('#fPayee').value.trim(),note:sh.querySelector('#fNote').value.trim(),ts:new Date(sh.querySelector('#fTs').value).getTime()||Date.now()};
-      if(x.id){const i=S.expenses.findIndex(z=>z.id===x.id);S.expenses[i]=rec}else{rec.id=uid();rec.src='manual';rec.status='ok';S.expenses.push(rec)}
+      if(x.id){const i=S.expenses.findIndex(z=>z.id===x.id);S.expenses[i]=rec}else{rec.id=uid();rec.src=x.src||'manual';rec.status='ok';S.expenses.push(rec)}
       learn(rec.payee,rec.vpa,c);save();closeSheet();render();toast('Saved ✓')};
     const d=sh.querySelector('#fDel');if(d)d.onclick=()=>{if(!confirm('Delete this expense?'))return;S.expenses=S.expenses.filter(z=>z.id!==x.id);save();closeSheet();render();toast('Deleted')};
   });
@@ -462,10 +462,41 @@ function vMore(){
   $('#wipe').onclick=()=>{if(confirm('Erase ALL expenses? Take a backup first!')&&confirm('Really erase everything?')){localStorage.removeItem(LS);S=load();rec=null;render();toast('Erased')}};
 }
 
+/* ============ capture from notification / share (one scan only) ============ */
+function parseNotif(t){
+  t=String(t||'').replace(/ /g,' ');
+  let amt=0,m=t.match(/(?:₹|rs\.?|inr)\s*([\d,]+(?:\.\d{1,2})?)/i);
+  if(m)amt=parseAmt(m[1]);
+  if(!amt){const lines=t.split(/\n/).map(s=>s.trim());for(const l of lines){const k=l.match(/^[₹%zZxX¥]?\s?([\d,]{1,9}(?:\.\d{1,2})?)$/);if(k&&parseAmt(k[1])>0){amt=parseAmt(k[1]);break}}}
+  let payee='';
+  const p=t.match(/(?:paid to|sent to|payment to|to)\s*[:\n]?\s*([A-Za-z][A-Za-z0-9 .&'@-]{1,40}?)(?=\s+(?:on|via|using|from|ref|upi|successfully|is|was|for|with)\b|[.,!\n]|$)/i);
+  if(p)payee=p[1].trim();
+  return{amt,payee};
+}
+function logFromText(t,src){
+  const{amt,payee}=parseNotif(t);
+  if(!amt){addSheet({note:String(t||'').slice(0,60),src});toast('Could not read the amount – please type it');return}
+  const dup=S.expenses.find(e=>Math.abs(e.amt-amt)<0.5&&Math.abs(Date.now()-e.ts)<4*60*1000);
+  if(dup){toast('Already logged – opening it');dup.status==='pending'?confirmSheet(dup):addSheet(dup);return}
+  addSheet({amt,payee,cat:suggest(payee),mode:'UPI',ts:Date.now(),src});
+}
+async function handleShare(){
+  let d={},blob=null;
+  try{const c=await caches.open('kharcha-share');const r=await c.match('./shared-text');if(r)d=await r.json();const f=await c.match('./shared-file');if(f)blob=await f.blob();await c.delete('./shared-text');await c.delete('./shared-file')}catch(e){}
+  const txt=[d.title,d.text].filter(Boolean).join('\n');
+  if(parseNotif(txt).amt)return logFromText(txt,'share');
+  if(blob){openSheet('<h3>Reading receipt…</h3><p class="muted">Finding amount and name (first time takes ~10 sec)</p>');
+    try{await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');const r=await Tesseract.recognize(blob,'eng');closeSheet();logFromText(r.data.text,'share')}
+    catch(e){closeSheet();toast('Could not read the screenshot');addSheet({src:'share'})}return}
+  if(txt)logFromText(txt,'share');else addSheet({src:'share'});
+}
+
 /* ============ start ============ */
 render();
 const qa=new URLSearchParams(location.search).get('a');
 if(new URLSearchParams(location.search).get('launchfail')){toast('Could not open the app that way – try More → 🔧 Test');if(S.pendingId)setTimeout(()=>confirmSheet(),300)}
+else if(qa==='log')logFromText(new URLSearchParams(location.search).get('t')||'','auto');
+else if(qa==='share')handleShare();
 else if(qa==='scan'||qa==='pay')payForm();else if(qa==='add')addSheet();else if(S.pendingId)confirmSheet();
 if(location.search)history.replaceState(null,'',location.pathname);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
