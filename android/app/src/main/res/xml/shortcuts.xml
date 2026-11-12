@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="cash"
+        android:enabled="true"
+        android:icon="@drawable/ic_cash"
+        android:shortcutShortLabel="@string/sc_cash_short"
+        android:shortcutLongLabel="@string/sc_cash_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.dhbhojani.kharcha"
+            android:targetClass="com.dhbhojani.kharcha.MainActivity">
+            <extra android:name="a" android:value="cash" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="add"
+        android:enabled="true"
+        android:icon="@drawable/ic_add"
+        android:shortcutShortLabel="@string/sc_add_short"
+        android:shortcutLongLabel="@string/sc_add_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.dhbhojani.kharcha"
+            android:targetClass="com.dhbhojani.kharcha.MainActivity">
+            <extra android:name="a" android:value="add" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="month"
+        android:enabled="true"
+        android:icon="@drawable/ic_chart"
+        android:shortcutShortLabel="@string/sc_month_short"
+        android:shortcutLongLabel="@string/sc_month_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.dhbhojani.kharcha"
+            android:targetClass="com.dhbhojani.kharcha.MainActivity">
+            <extra android:name="a" android:value="month" />
+        </intent>
+    </shortcut>
+</shortcuts>

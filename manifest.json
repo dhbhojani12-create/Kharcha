@@ -24,9 +24,31 @@
   ],
   "shortcuts": [
     {
+      "name": "Add cash expense",
+      "short_name": "Cash",
+      "url": "./?a=cash",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
       "name": "Add expense",
       "short_name": "Add",
       "url": "./?a=add",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "This month",
+      "short_name": "Month",
+      "url": "./?a=month",
       "icons": [
         {
           "src": "icon-192.png",

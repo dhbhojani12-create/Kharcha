@@ -106,7 +106,20 @@ public class MainActivity extends Activity {
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 3);
         }
-        web.loadUrl(HOME);
+        web.loadUrl(HOME + action(getIntent()));
+    }
+
+    static String action(Intent i) {
+        String a = i == null ? null : i.getStringExtra("a");
+        return a == null || a.isEmpty() ? "" : "?a=" + a;
+    }
+
+    @Override
+    protected void onNewIntent(Intent i) {
+        super.onNewIntent(i);
+        setIntent(i);
+        String a = action(i);
+        if (!a.isEmpty() && web != null) web.loadUrl(HOME + a);
     }
 
     @Override

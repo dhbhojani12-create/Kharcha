@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="acc_desc">Kharcha reads ONLY the payment success screen of Samsung Wallet, Google Pay, PhonePe, Paytm and BHIM to note the amount and who you paid, so it can ask you for a category instantly. It cannot see any other app. Nothing leaves your phone.</string>
+    <string name="sc_cash_short">Cash</string>
+    <string name="sc_cash_long">Add cash expense</string>
+    <string name="sc_add_short">Add</string>
+    <string name="sc_add_long">Add expense</string>
+    <string name="sc_month_short">This month</string>
+    <string name="sc_month_long">This month</string>
 </resources>
