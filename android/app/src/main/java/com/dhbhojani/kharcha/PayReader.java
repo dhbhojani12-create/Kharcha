@@ -39,6 +39,7 @@ public class PayReader extends AccessibilityService {
             "verified", "verified merchant", "upi id", "your bank", "view balance", "rate us", "download", "copy"));
 
     static String lastSig = "";
+    static boolean armed = true;
     static long lastSigTs = 0;
     long lastScan = 0;
 
@@ -65,7 +66,11 @@ public class PayReader extends AccessibilityService {
             List<String> lines = new ArrayList<>();
             collect(root, lines, 0);
             String all = String.join("\n", lines);
-            if (!SUCCESS.matcher(all).find() || BAD.matcher(all).find()) return;
+            if (!SUCCESS.matcher(all).find() || BAD.matcher(all).find()) {
+                // left the success screen → ready for the next payment
+                if (!lines.isEmpty()) armed = true;
+                return;
+            }
 
             Matcher m = AMT.matcher(all);
             int count = 0;
@@ -94,7 +99,8 @@ public class PayReader extends AccessibilityService {
             Matcher dt = DATETIME.matcher(all);
             String when = dt.find() ? dt.group() : "";
             String sig = Parse.fmt(amt) + "|" + Parse.key(payee) + "|" + when;
-            if (sig.equals(lastSig) && (!when.isEmpty() || now - lastSigTs < 60 * 1000)) return;
+            if (sig.equals(lastSig) && (!armed || now - lastSigTs < 20 * 1000)) return;
+            armed = false;
             lastSig = sig;
             lastSigTs = now;
 
