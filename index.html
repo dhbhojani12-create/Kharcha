@@ -116,7 +116,8 @@ const APP=window.KharchaApp||null;
 const APK_URL='https://github.com/dhbhojani12-create/Kharcha/releases/download/apk/Kharcha.apk';
 let S=load();
 function load(){try{const s=JSON.parse(localStorage.getItem(LS));if(s&&Array.isArray(s.expenses)){s.cats=s.cats||DEF_CATS;s.rules=s.rules||{};s.seen=s.seen||{};return s}}catch(e){}return{v:1,expenses:[],cats:DEF_CATS.slice(),rules:{},seen:{},pendingId:null}}
-function save(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){toast('⚠️ Could not save – storage full?')}}
+function save(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){toast('⚠️ Could not save – storage full?')}syncNative()}
+function syncNative(){const A=window.KharchaApp;if(A&&A.setCats){try{A.setCats(JSON.stringify(S.cats.map(c=>({id:c.id,name:c.name,emoji:c.emoji}))));A.setRules(JSON.stringify(S.rules))}catch(e){}}}
 
 /* ============ helpers ============ */
 const $=s=>document.querySelector(s);
@@ -318,12 +319,12 @@ function vHome(){
   const recent=[...S.expenses].sort((a,b)=>b.ts-a.ts).slice(0,80);
   view.innerHTML=`<section class="hero"><div><small>Spent in ${monthName(m)}</small><h1>${inr(sum(mon))}</h1></div><div class="today"><small>Today</small><b>${inr(sum(today))}</b></div></section>
   <div class="actions"><button class="act scan" id="hScan">💸<span>Pay</span></button><button class="act" id="hAdd">➕<span>Quick Add</span></button></div>
-  ${APP&&!APP.hasNotifAccess()?`<button class="warn" id="hAcc">🔔 Turn on auto-capture – tap here</button>`:''}
+  ${APP&&!APP.hasNotifAccess()?`<button class="warn" id="hAcc">🔔 Turn on auto-capture – tap here</button>`:''}${APP&&APP.hasNotifAccess()&&APP.canOverlay&&!APP.canOverlay()?`<button class="warn" id="hOv">🪟 Turn on pop-up after payment – tap here</button>`:''}
   ${pend.length?`<button class="warn" id="hPend">⏳ ${pend.length} payment${pend.length>1?'s':''} waiting – tap to confirm</button>`:''}
   <div id="hList">${groupList(recent)}</div>`;
   $('#hScan').onclick=()=>{draft={};payForm()};$('#hAdd').onclick=()=>addSheet();
   if(pend.length)$('#hPend').onclick=()=>confirmSheet(pend[0]);
-  const ha=$('#hAcc');if(ha)ha.onclick=()=>APP.openNotifSettings();
+  const ha=$('#hAcc');if(ha)ha.onclick=()=>APP.openNotifSettings();const ho=$('#hOv');if(ho)ho.onclick=()=>APP.openOverlaySettings();
   bindItems($('#hList'));
 }
 
@@ -449,6 +450,8 @@ function vMore(){
   view.innerHTML=`${APP?`<div class="card"><h4>🔔 Auto-capture payments</h4><p class="small muted" style="margin-top:0">Kharcha reads the “paid ₹…” notification from GPay / PhonePe / Samsung Wallet / bank apps and asks you only for the category.</p>
   <p style="margin:6px 0"><b>${APP.hasNotifAccess()?'✅ ON':'❌ OFF – tap below and turn on Kharcha'}</b></p>
   <button class="btn ${APP.hasNotifAccess()?'ghost':'pri big'}" id="nAcc">${APP.hasNotifAccess()?'Notification access settings':'Turn on notification access'}</button>
+  <p style="margin:10px 0 4px"><b>🪟 Pop-up over other apps: ${APP.canOverlay&&APP.canOverlay()?'✅ ON':'❌ OFF'}</b></p>
+  ${APP.canOverlay?(APP.canOverlay()?'<button class="btn ghost" id="tPop">Show a test pop-up</button>':'<button class="btn pri big" id="ovB">Turn on “Appear on top”</button>'):''}
   <div class="chips" style="margin-top:10px"><button id="smsT" class="${APP.getReadSms()?'on':''}">📩 Also read bank SMS alerts</button></div>${APP.getLog?'<button class="btn ghost" id="diagB">🩺 Check auto-capture</button>':''}</div>`:`<div class="card"><h4>🤖 Android app (auto-capture)</h4><p class="small muted" style="margin-top:0">Install the Kharcha Android app to log payments automatically from GPay notifications – no double scanning.</p><a class="btn pri big" href="${APK_URL}" style="text-decoration:none">⬇️ Download Kharcha.apk</a></div>`}
   <div class="card"><h4>📲 Install on your phone</h4><p class="small muted" style="margin:0">In Chrome tap <b>⋮ → Add to Home screen / Install app</b>. Then <b>long-press the Kharcha icon</b> for a direct “Pay” shortcut.</p></div>
   <div class="card"><h4>💳 Payment app</h4><p class="small muted" style="margin-top:0">The app Kharcha opens when you tap Pay.</p><div class="chips" id="payApp">${PAY_APPS.map(([k,n])=>`<button data-p="${k}" class="${k===payPkg()?'on':''}">${n}</button>`).join('')}</div><button class="btn ghost" id="tLaunch">🔧 Test opening the app</button></div>
@@ -459,10 +462,10 @@ function vMore(){
   <button class="btn ghost" id="bk">💾 Backup (file)</button>
   <label class="btn ghost">♻️ Restore from backup<input type="file" accept=".json,application/json" id="rs" hidden></label>
   <button class="btn ghost" id="wipe" style="color:var(--red)">🗑️ Erase all data</button></div>
-  <p class="small muted" style="text-align:center">Kharcha web v6 · works offline · no login</p>`;
+  <p class="small muted" style="text-align:center">Kharcha web v7 · works offline · no login</p>`;
   bindPick($('#payApp'),'data-p',k=>{S.payApp=k;S.launch=null;save();toast(payName()+' selected')});
   $('#tLaunch').onclick=testLaunchSheet;
-  if(APP){$('#nAcc').onclick=()=>APP.openNotifSettings();$('#smsT').onclick=()=>{APP.setReadSms(!APP.getReadSms());render()};const db=$('#diagB');if(db)db.onclick=diagSheet}
+  if(APP){$('#nAcc').onclick=()=>APP.openNotifSettings();$('#smsT').onclick=()=>{APP.setReadSms(!APP.getReadSms());render()};const db=$('#diagB');if(db)db.onclick=diagSheet;const ob=$('#ovB');if(ob)ob.onclick=()=>APP.openOverlaySettings();const tp=$('#tPop');if(tp)tp.onclick=()=>APP.testPopup()}
   view.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const c=cat(b.dataset.del);const n=S.expenses.filter(e=>e.cat===c.id).length;if(!confirm(`Remove “${c.name}”?`+(n?` ${n} expenses will move to Other.`:'')))return;S.expenses.forEach(e=>{if(e.cat===c.id)e.cat='other'});S.cats=S.cats.filter(x=>x.id!==c.id);Object.keys(S.rules).forEach(k=>{if(S.rules[k]===c.id)delete S.rules[k]});save();render()});
   $('#nAdd').onclick=()=>{const nm=$('#nName').value.trim();if(!nm)return toast('Type a name');const col=['#0ea5e9','#f97316','#22c55e','#a855f7','#ec4899','#eab308','#14b8a6'][S.cats.length%7];S.cats.splice(S.cats.length-1,0,{id:'c'+uid(),name:nm,emoji:$('#nEmoji').value.trim()||'🏷️',color:col});save();render();toast('Category added')};
   $('#xAll').onclick=()=>okEx().length?exportXlsx(okEx(),'Kharcha-all'):toast('Nothing to export yet');
@@ -505,7 +508,14 @@ function diagSheet(){
 }
 let Q=[];
 function nextQueued(){if(!Q.length||!$('#ov').classList.contains('hidden'))return;const it=Q.shift();logFromText(it.t,'auto',it.ts);if(Q.length)setTimeout(()=>toast(Q.length+' more payment'+(Q.length>1?'s':'')+' to tag'),400)}
-window.kharchaPoll=function(){if(!APP)return;try{const a=JSON.parse(APP.takePending()||'[]');if(a.length){Q.push(...a);nextQueued()}}catch(e){}};
+function importDone(it){
+  const c=S.cats.some(x=>x.id===it.cat)?it.cat:'other';
+  const dup=S.expenses.find(e=>Math.abs(e.amt-it.amt)<0.5&&Math.abs(it.ts-e.ts)<6*60*1000);
+  if(dup){dup.cat=c;if(it.note)dup.note=it.note;if(!dup.payee)dup.payee=it.payee;dup.status='ok';if(S.pendingId===dup.id)S.pendingId=null}
+  else S.expenses.push({id:uid(),amt:it.amt,cat:c,payee:it.payee||'',note:it.note||'',mode:'UPI',ts:it.ts,src:'auto',status:'ok'});
+  learn(it.payee,'',c);
+}
+window.kharchaPoll=function(){if(!APP)return;try{const a=JSON.parse(APP.takePending()||'[]');let n=0;a.forEach(it=>{if(it.done){importDone(it);n++}else Q.push(it)});if(n){save();render();toast(n+' payment'+(n>1?'s':'')+' added from pop-up ✓')}nextQueued()}catch(e){}};
 async function ocrBlob(blob){openSheet('<h3>Reading receipt…</h3><p class="muted">Finding amount and name (first time takes ~10 sec)</p>');
   try{await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');const r=await Tesseract.recognize(blob,'eng');closeSheet();logFromText(r.data.text,'share')}
   catch(e){closeSheet();toast('Could not read the screenshot');addSheet({src:'share'})}}
@@ -527,7 +537,7 @@ else if(qa==='log')logFromText(new URLSearchParams(location.search).get('t')||''
 else if(qa==='share')handleShare();
 else if(qa==='scan'||qa==='pay')payForm();else if(qa==='add')addSheet();else if(S.pendingId)confirmSheet();
 if(location.search)history.replaceState(null,'',location.pathname);
-if(APP){setTimeout(()=>window.kharchaPoll(),600);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(()=>{window.kharchaPoll();render()},400)})}
+if(APP){syncNative();setTimeout(()=>window.kharchaPoll(),600);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(()=>{window.kharchaPoll();render()},400)})}
 if(!APP&&'serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>

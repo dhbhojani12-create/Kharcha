@@ -7,6 +7,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -45,6 +47,7 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
         s.setMediaPlaybackRequiresUserGesture(false);
+        s.setCacheMode(online() ? WebSettings.LOAD_NO_CACHE : WebSettings.LOAD_CACHE_ELSE_NETWORK);
         web.addJavascriptInterface(new Bridge(), "KharchaApp");
 
         web.setWebViewClient(new WebViewClient() {
@@ -181,6 +184,16 @@ public class MainActivity extends Activity {
                 v -> { if ("0".equals(v)) finish(); });
     }
 
+    boolean online() {
+        try {
+            ConnectivityManager cm = getSystemService(ConnectivityManager.class);
+            NetworkCapabilities nc = cm.getNetworkCapabilities(cm.getActiveNetwork());
+            return nc != null && nc.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
     void toast(String m) {
         runOnUiThread(() -> Toast.makeText(this, m, Toast.LENGTH_SHORT).show());
     }
@@ -259,7 +272,37 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String version() {
-            return "2";
+            return "3";
+        }
+
+        @JavascriptInterface
+        public boolean canOverlay() {
+            return Settings.canDrawOverlays(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void openOverlaySettings() {
+            Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            runOnUiThread(() -> startActivity(i));
+        }
+
+        @JavascriptInterface
+        public void setCats(String json) {
+            getSharedPreferences("k", MODE_PRIVATE).edit().putString("cats", json).apply();
+        }
+
+        @JavascriptInterface
+        public void setRules(String json) {
+            getSharedPreferences("k", MODE_PRIVATE).edit().putString("rules", json).apply();
+        }
+
+        @JavascriptInterface
+        public void testPopup() {
+            runOnUiThread(() -> {
+                if (!Settings.canDrawOverlays(MainActivity.this)) { toast("Turn on 'Appear on top' first"); return; }
+                Popup.show(MainActivity.this, "Test: You paid ₹10 to Test Shop", -1, null);
+            });
         }
 
         @JavascriptInterface

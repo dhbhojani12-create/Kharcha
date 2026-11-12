@@ -8,6 +8,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.provider.Settings;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 
@@ -78,7 +81,15 @@ public class PayListener extends NotificationListenerService {
             last = all;
             lastTs = now;
             add(this, all, now);
-            notifyUser(all);
+            final String txt = all;
+            if (Settings.canDrawOverlays(this)) {
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    try { Popup.show(PayListener.this, txt, now, () -> notifyUser(txt)); }
+                    catch (Exception e) { notifyUser(txt); }
+                });
+            } else {
+                notifyUser(all);
+            }
         } catch (Exception ignored) {
         }
     }
@@ -122,6 +133,26 @@ public class PayListener extends NotificationListenerService {
         } catch (Exception ignored) {
         }
         p.edit().putString("q", a.toString()).apply();
+    }
+
+    static synchronized void markDone(Context c, long ts, double amt, String payee, String cat, String note) {
+        SharedPreferences p = c.getSharedPreferences("k", MODE_PRIVATE);
+        try {
+            JSONArray a = new JSONArray(p.getString("q", "[]"));
+            boolean found = false;
+            for (int i = 0; i < a.length(); i++) {
+                JSONObject o = a.getJSONObject(i);
+                if (o.optLong("ts") == ts) { found = true; fill(o, amt, payee, cat, note); }
+            }
+            if (!found) { JSONObject o = new JSONObject(); o.put("ts", ts); o.put("t", ""); fill(o, amt, payee, cat, note); a.put(o); }
+            p.edit().putString("q", a.toString()).apply();
+        } catch (Exception ignored) { }
+        NotificationManager nm = c.getSystemService(NotificationManager.class);
+        if (nm != null) nm.cancel(7);
+    }
+
+    static void fill(JSONObject o, double amt, String payee, String cat, String note) throws Exception {
+        o.put("done", true); o.put("amt", amt); o.put("payee", payee); o.put("cat", cat); o.put("note", note);
     }
 
     static synchronized String take(Context c) {
