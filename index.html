@@ -460,7 +460,7 @@ function vMore(){
   <button class="btn ghost" id="bk">💾 Backup (file)</button>
   <label class="btn ghost">♻️ Restore from backup<input type="file" accept=".json,application/json" id="rs" hidden></label>
   <button class="btn ghost" id="wipe" style="color:var(--red)">🗑️ Erase all data</button></div>
-  <p class="small muted" style="text-align:center">Kharcha web v10 · works offline · no login</p>`;
+  <p class="small muted" style="text-align:center">Kharcha web v11 · works offline · no login</p>`;
   bindPick($('#payApp'),'data-p',k=>{S.payApp=k;S.launch=null;save();toast(payName()+' selected')});
   $('#tLaunch').onclick=testLaunchSheet;
   if(APP){const db=$('#diagB');if(db)db.onclick=diagSheet;const ab=$('#accB');if(ab)ab.onclick=()=>APP.openAccessibilitySettings();const ai=$('#accInfo');if(ai)ai.onclick=()=>APP.openAppInfo()}
@@ -487,7 +487,7 @@ function parseNotif(t){
 function logFromText(t,src,ts){
   const{amt,payee}=parseNotif(t);
   if(!amt){addSheet({payee,cat:suggest(payee),mode:'UPI',ts:ts||Date.now(),src});toast('Type the amount');return}
-  const dup=S.expenses.find(e=>Math.abs(e.amt-amt)<0.5&&Math.abs((ts||Date.now())-e.ts)<6*60*1000);
+  const dup=S.expenses.find(e=>e.status==='pending'&&Math.abs(e.amt-amt)<0.5&&Math.abs((ts||Date.now())-e.ts)<6*60*1000);
   if(dup){toast('Already logged – opening it');dup.status==='pending'?confirmSheet(dup):addSheet(dup);return}
   addSheet({amt,payee,cat:suggest(payee),mode:'UPI',ts:ts||Date.now(),src});
 }
@@ -505,7 +505,8 @@ let Q=[];
 function nextQueued(){if(!Q.length||!$('#ov').classList.contains('hidden'))return;const it=Q.shift();logFromText(it.t,'auto',it.ts);if(Q.length)setTimeout(()=>toast(Q.length+' more payment'+(Q.length>1?'s':'')+' to tag'),400)}
 function importDone(it){
   const c=S.cats.some(x=>x.id===it.cat)?it.cat:'other';
-  const dup=S.expenses.find(e=>Math.abs(e.amt-it.amt)<0.5&&Math.abs(it.ts-e.ts)<6*60*1000);
+  if(S.expenses.some(e=>e.src==='auto'&&e.ts===it.ts))return; // same capture imported twice
+  const dup=S.expenses.find(e=>e.status==='pending'&&Math.abs(e.amt-it.amt)<0.5&&Math.abs(it.ts-e.ts)<6*60*1000); // only merge with an unconfirmed 💸 Pay entry
   if(dup){dup.cat=c;if(it.note)dup.note=it.note;if(!dup.payee)dup.payee=it.payee;dup.status='ok';if(S.pendingId===dup.id)S.pendingId=null}
   else S.expenses.push({id:uid(),amt:it.amt,cat:c,payee:it.payee||'',note:it.note||'',mode:'UPI',ts:it.ts,src:'auto',status:'ok'});
   learn(it.payee,'',c);
