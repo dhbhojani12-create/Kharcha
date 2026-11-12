@@ -193,7 +193,7 @@ async function decodeFrom(src){ // src: video or image element / bitmap
   const sc=Math.min(1,800/Math.max(w,h));const cv=document.createElement('canvas');cv.width=w*sc;cv.height=h*sc;const cx=cv.getContext('2d',{willReadFrequently:true});cx.drawImage(src,0,0,cv.width,cv.height);
   const r=jsQR(cx.getImageData(0,0,cv.width,cv.height).data,cv.width,cv.height);return r?r.data:null}
 function scanSheet(){
-  openSheet(`<h3>Scan & Pay</h3><p class="muted small" style="margin-top:0">Scan the shop's UPI QR here – the expense gets saved, then your UPI app opens to pay.</p>
+  openSheet(`<h3>Scan QR</h3><p class="muted small" style="margin-top:0">Scan the UPI QR – shop QRs open pre-filled in your payment app.</p>
   <div class="cam"><video id="vid" playsinline muted></video><div class="frame"></div></div>
   <p class="muted" id="scanMsg" style="text-align:center">Starting camera…</p>
   <label class="btn ghost">🖼️ Pick QR photo from gallery<input type="file" accept="image/*" id="qrImg" hidden></label>
@@ -213,40 +213,52 @@ function handleQR(text){
   if(!pa){toast('No UPI ID in this QR');return}
   payForm({p,pa,pn:p.get('pn')||'',am:p.get('am')||''});
 }
+const PAY_APPS=[['com.samsung.android.spay','Samsung Wallet'],['com.phonepe.app','PhonePe'],['com.google.android.apps.nbu.paisa.user','Google Pay'],['net.one97.paytm','Paytm'],['in.org.npci.upiapp','BHIM']];
+const payPkg=()=>S.payApp||PAY_APPS[0][0];
+const payName=()=>(PAY_APPS.find(x=>x[0]===payPkg())||PAY_APPS[0])[1];
+const isShopQR=q=>q&&q.p&&q.p.get('mc')&&q.p.get('mc')!=='0000';
+function upiQS(q,amt,note){const p=new URLSearchParams(q.p);if(!parseAmt(p.get('am')))p.set('am',amt.toFixed(2));if(!p.get('cu'))p.set('cu','INR');if(!p.get('tn')&&note)p.set('tn',note.slice(0,40));return[...p].map(([k,v])=>k+'='+encodeURIComponent(v).replace(/%40/g,'@')).join('&')}
+function openPayApp(){askedAt=Date.now();openUPI(`intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${payPkg()};end`)}
+function openPrefilled(q,amt,note){askedAt=Date.now();openUPI(`intent://pay?${upiQS(q,amt,note)}#Intent;scheme=upi;package=${payPkg()};end`)}
+let draft={};
 function payForm(q){
-  const name=q.pn||q.pa;const fixed=parseAmt(q.am)>0;const sug=suggest(q.pn,q.pa);
-  openSheet(`<h3>Pay ${esc(name)}</h3><p class="muted small" style="margin-top:0">${esc(q.pa)}</p>
-  <div class="amt"><span>₹</span><input id="pAmt" inputmode="decimal" placeholder="0" value="${fixed?parseAmt(q.am):''}" ${fixed?'readonly':''}></div>
+  const name=q?(q.pn||q.pa):'';const fixed=q&&parseAmt(q.am)>0;const sug=(q&&suggest(q.pn,q.pa))||draft.cat||'';
+  openSheet(`<h3>${q?'Pay '+esc(name):'💸 Pay'}</h3>${q?`<p class="muted small" style="margin-top:0">${esc(q.pa)}${isShopQR(q)?' · 🏪 shop':''}</p>`:''}
+  <div class="amt"><span>₹</span><input id="pAmt" inputmode="decimal" placeholder="0" value="${fixed?parseAmt(q.am):(draft.amt||'')}" ${fixed?'readonly':''}></div>
   <p class="small muted" style="margin:-6px 0 4px">What is this for?</p>
   ${catGrid(sug,'pCats')}
-  <input id="pNote" placeholder="Note (optional)">
-  <button class="btn pri big" id="pGo">Save →</button>
-  <p class="muted small" style="text-align:center">Then pay as usual in Samsung Wallet and come back to tick ✅.</p>`,sh=>{
+  <input id="pNote" placeholder="Note (optional)" value="${esc(draft.note||'')}">
+  ${q?'':`<input id="pPayee" placeholder="Paying to (optional)" value="${esc(draft.payee||'')}"><button class="btn ghost" id="pScan" style="font-size:14px">📷 Scan QR here instead (fills the name)</button>`}
+  <button class="btn pri big" id="pGo" style="margin-top:10px">Open ${payName()} →</button>
+  <p class="muted small" style="text-align:center">${q&&isShopQR(q)?'Payment opens pre-filled – just confirm.':'Scan &amp; pay in '+payName()+', then come back and tap ✅.'}</p>`,sh=>{
     const cats=sh.querySelector('#pCats');bindPick(cats,'data-c');
     if(!fixed)setTimeout(()=>sh.querySelector('#pAmt')?.focus(),150);
+    const keep=()=>{draft={amt:sh.querySelector('#pAmt').value,cat:picked(cats,'data-c'),note:sh.querySelector('#pNote').value,payee:sh.querySelector('#pPayee')?.value||''}};
+    const sc=sh.querySelector('#pScan');if(sc)sc.onclick=()=>{keep();scanSheet()};
     sh.querySelector('#pGo').onclick=()=>{
       const amt=parseAmt(sh.querySelector('#pAmt').value);if(!amt){toast('Enter an amount');return}
       const c=picked(cats,'data-c');if(!c){cats.classList.add('err');toast('Pick a category');return}
-      const note=sh.querySelector('#pNote').value.trim();
-      const e={id:uid(),amt,cat:c,mode:'UPI',payee:q.pn||q.pa,vpa:q.pa,note,ts:Date.now(),src:'scan',status:'pending'};
-      S.expenses.push(e);S.pendingId=e.id;learn(q.pn,q.pa,c);save();
-      const p=new URLSearchParams(q.p);if(!fixed)p.set('am',amt.toFixed(2));if(!p.get('cu'))p.set('cu','INR');if(!p.get('tn')&&note)p.set('tn',note.slice(0,40));
-      const url='upi://pay?'+[...p].map(([k,v])=>k+'='+encodeURIComponent(v).replace(/%40/g,'@')).join('&');
-      render();payNowSheet(e,url);
+      const note=sh.querySelector('#pNote').value.trim();const payee=q?(q.pn||q.pa):(sh.querySelector('#pPayee').value.trim());
+      const e={id:uid(),amt,cat:c,mode:'UPI',payee,vpa:q?q.pa:'',note,ts:Date.now(),src:q?'scan':'pay',status:'pending'};
+      S.expenses.push(e);S.pendingId=e.id;learn(payee,e.vpa,c);save();draft={};render();
+      payNowSheet(e,q);
+      if(q&&isShopQR(q))openPrefilled(q,amt,note);else openPayApp();
     };
   });
 }
 let askedAt=0;
 function openUPI(url){location.href=url}
-function payNowSheet(e,url){
-  openSheet(`<h3>Saved – now pay 👍</h3><p class="muted" style="margin-top:0">Open <b>Samsung Wallet</b>, scan the same QR and pay</p>
-  <div class="card" style="text-align:center;margin:8px 0"><div class="big2">${inr(e.amt)}</div><div>${esc(e.payee)}</div><div class="small muted">${esc(e.vpa||'')}</div></div>
+function payNowSheet(e,q){
+  openSheet(`<h3>Pay in ${payName()}</h3><p class="muted" style="margin-top:0">Saved ✓ – after paying, tap <b>Paid</b>.</p>
+  <div class="card" style="text-align:center;margin:8px 0"><div class="big2">${inr(e.amt)}</div><div>${esc(e.payee||cat(e.cat).name)}</div><div class="small muted">${esc(e.vpa||'')}</div></div>
   <button class="btn pri big" id="nPaid">✅ Paid</button>
   <button class="btn ghost" id="nNo">❌ Didn't pay – remove it</button>
-  <button class="btn ghost" id="nTry" style="font-size:13px">Try opening UPI app directly (works only for some shops)</button>`,sh=>{
+  <button class="btn ghost" id="nOpen">↗️ Open ${payName()} again</button>
+  ${q&&!isShopQR(q)?`<button class="btn ghost" id="nTry" style="font-size:13px">Try pre-filled payment (may be blocked for personal QRs)</button>`:''}`,sh=>{
     sh.querySelector('#nPaid').onclick=()=>{e.status='ok';if(S.pendingId===e.id)S.pendingId=null;save();closeSheet();render();toast('Saved ✓')};
     sh.querySelector('#nNo').onclick=()=>{S.expenses=S.expenses.filter(x=>x.id!==e.id);if(S.pendingId===e.id)S.pendingId=null;save();closeSheet();render();toast('Removed')};
-    sh.querySelector('#nTry').onclick=()=>{askedAt=Date.now();openUPI(url)};
+    sh.querySelector('#nOpen').onclick=openPayApp;
+    const t=sh.querySelector('#nTry');if(t)t.onclick=()=>openPrefilled(q,e.amt,e.note);
   });
 }
 function confirmSheet(e){
@@ -272,7 +284,7 @@ function itemRow(e){const c=cat(e.cat);const pend=e.status==='pending';
   <div class="t"><b>${esc(e.payee||c.name)}${pend?'<span class="tag">confirm?</span>':''}</b><small>${esc(c.name)}${e.note?' · '+esc(e.note):''} · ${e.mode} · ${e.src==='statement'?'from statement':tm(e.ts)}</small></div>
   <div class="a">${inr(e.amt)}</div></button>`}
 function groupList(arr){
-  if(!arr.length)return`<div class="empty">No expenses yet.<br>Next time you pay, tap <b>Scan &amp; Pay</b> – it takes 3 seconds.</div>`;
+  if(!arr.length)return`<div class="empty">No expenses yet.<br>Next time you pay, tap <b>💸 Pay</b> – it takes 3 seconds.</div>`;
   const g={};arr.forEach(e=>{const k=sod(e.ts);(g[k]=g[k]||[]).push(e)});
   return Object.keys(g).sort((a,b)=>b-a).map(k=>{const l=g[k];return`<div class="day"><span>${dayLabel(+k)}</span><span>${inr(sum(l.filter(e=>e.status!=='pending')))}</span></div><div class="list">${l.map(itemRow).join('')}</div>`}).join('');
 }
@@ -284,10 +296,10 @@ function vHome(){
   const pend=S.expenses.filter(e=>e.status==='pending');
   const recent=[...S.expenses].sort((a,b)=>b.ts-a.ts).slice(0,80);
   view.innerHTML=`<section class="hero"><div><small>Spent in ${monthName(m)}</small><h1>${inr(sum(mon))}</h1></div><div class="today"><small>Today</small><b>${inr(sum(today))}</b></div></section>
-  <div class="actions"><button class="act scan" id="hScan">📷<span>Scan &amp; Pay</span></button><button class="act" id="hAdd">➕<span>Quick Add</span></button></div>
+  <div class="actions"><button class="act scan" id="hScan">💸<span>Pay</span></button><button class="act" id="hAdd">➕<span>Quick Add</span></button></div>
   ${pend.length?`<button class="warn" id="hPend">⏳ ${pend.length} payment${pend.length>1?'s':''} waiting – tap to confirm</button>`:''}
   <div id="hList">${groupList(recent)}</div>`;
-  $('#hScan').onclick=scanSheet;$('#hAdd').onclick=()=>addSheet();
+  $('#hScan').onclick=()=>{draft={};payForm()};$('#hAdd').onclick=()=>addSheet();
   if(pend.length)$('#hPend').onclick=()=>confirmSheet(pend[0]);
   bindItems($('#hList'));
 }
@@ -411,7 +423,8 @@ function exportXlsx(list,fname){loadXLSX().then(()=>{
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sm),'Summary');XLSX.writeFile(wb,fname+'.xlsx')}).catch(e=>toast(e.message))}
 function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.download=name;a.click()}
 function vMore(){
-  view.innerHTML=`<div class="card"><h4>📲 Install on your phone</h4><p class="small muted" style="margin:0">In Chrome tap <b>⋮ → Add to Home screen / Install app</b>. Then <b>long-press the Kharcha icon</b> for a direct “Scan &amp; Pay” shortcut.</p></div>
+  view.innerHTML=`<div class="card"><h4>📲 Install on your phone</h4><p class="small muted" style="margin:0">In Chrome tap <b>⋮ → Add to Home screen / Install app</b>. Then <b>long-press the Kharcha icon</b> for a direct “Pay” shortcut.</p></div>
+  <div class="card"><h4>💳 Payment app</h4><p class="small muted" style="margin-top:0">The app Kharcha opens when you tap Pay.</p><div class="chips" id="payApp">${PAY_APPS.map(([k,n])=>`<button data-p="${k}" class="${k===payPkg()?'on':''}">${n}</button>`).join('')}</div></div>
   <div class="card"><h4>🏷️ Categories</h4>${S.cats.map(c=>`<div class="catrow"><div class="ico" style="background:${c.color}22">${c.emoji}</div><span>${esc(c.name)}</span>${c.id==='other'?'':`<button data-del="${c.id}">Remove</button>`}</div>`).join('')}
   <div class="row"><input id="nEmoji" placeholder="🙂" style="width:64px;flex:none;text-align:center" maxlength="4"><input id="nName" placeholder="New category name"></div><button class="btn pri big" id="nAdd" style="margin-top:6px">Add category</button></div>
   <div class="card"><h4>💾 Your data</h4><p class="small muted" style="margin-top:0">${okEx().length} expenses saved on this phone only. Take a backup now and then.</p>
@@ -420,6 +433,7 @@ function vMore(){
   <label class="btn ghost">♻️ Restore from backup<input type="file" accept=".json,application/json" id="rs" hidden></label>
   <button class="btn ghost" id="wipe" style="color:var(--red)">🗑️ Erase all data</button></div>
   <p class="small muted" style="text-align:center">Kharcha · works offline · no login, no SMS reading</p>`;
+  bindPick($('#payApp'),'data-p',k=>{S.payApp=k;save();toast(payName()+' selected')});
   view.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const c=cat(b.dataset.del);const n=S.expenses.filter(e=>e.cat===c.id).length;if(!confirm(`Remove “${c.name}”?`+(n?` ${n} expenses will move to Other.`:'')))return;S.expenses.forEach(e=>{if(e.cat===c.id)e.cat='other'});S.cats=S.cats.filter(x=>x.id!==c.id);Object.keys(S.rules).forEach(k=>{if(S.rules[k]===c.id)delete S.rules[k]});save();render()});
   $('#nAdd').onclick=()=>{const nm=$('#nName').value.trim();if(!nm)return toast('Type a name');const col=['#0ea5e9','#f97316','#22c55e','#a855f7','#ec4899','#eab308','#14b8a6'][S.cats.length%7];S.cats.splice(S.cats.length-1,0,{id:'c'+uid(),name:nm,emoji:$('#nEmoji').value.trim()||'🏷️',color:col});save();render();toast('Category added')};
   $('#xAll').onclick=()=>okEx().length?exportXlsx(okEx(),'Kharcha-all'):toast('Nothing to export yet');
@@ -431,7 +445,7 @@ function vMore(){
 /* ============ start ============ */
 render();
 const qa=new URLSearchParams(location.search).get('a');
-if(qa==='scan')scanSheet();else if(qa==='add')addSheet();else if(S.pendingId)confirmSheet();
+if(qa==='scan'||qa==='pay')payForm();else if(qa==='add')addSheet();else if(S.pendingId)confirmSheet();
 if(qa)history.replaceState(null,'',location.pathname);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
