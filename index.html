@@ -3,538 +3,445 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0f766e">
+<meta name="theme-color" content="#f6f7f9">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
-<title>Kharcha – Expense Tracker</title>
+<title>Kharcha</title>
 <style>
-:root{--bg:#f4f6f8;--card:#fff;--ink:#0f172a;--mut:#64748b;--line:#e5e9f0;--pri:#0f766e;--pri2:#14b8a6;--red:#dc2626}
+:root{--bg:#f6f7f9;--card:#fff;--ink:#0f172a;--mut:#6b7280;--line:#eceef2;--pri:#0f766e;--soft:#e6f4f2;--red:#dc2626}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
-main{max-width:560px;margin:0 auto;padding:16px}
-button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
-input,select{font:inherit;width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;margin:6px 0;color:var(--ink)}
-.hero{background:linear-gradient(135deg,#0f766e,#134e4a);color:#fff;border-radius:20px;padding:20px;display:flex;justify-content:space-between;align-items:flex-end}
-.hero h1{margin:4px 0 0;font-size:34px;letter-spacing:-.5px}
-.hero small{opacity:.8}
-.today{text-align:right}.today b{display:block;font-size:20px}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
-.act{background:var(--card);border-radius:18px;padding:18px 10px;font-size:28px;display:flex;flex-direction:column;align-items:center;gap:6px;border:1px solid var(--line)}
-.act span{font-size:15px;font-weight:600}
-.act.scan{background:var(--ink);color:#fff;border-color:var(--ink)}
-.day{margin:18px 4px 6px;font-size:13px;font-weight:600;color:var(--mut);display:flex;justify-content:space-between}
-.list{background:var(--card);border-radius:16px;border:1px solid var(--line);overflow:hidden}
-.item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);width:100%;text-align:left}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
+main{max-width:560px;margin:0 auto;padding:18px 16px}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0}
+input{font:inherit;width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;margin:5px 0;color:var(--ink);outline:none}
+input:focus{border-color:var(--pri)}
+h2{font-size:22px;margin:4px 2px 14px;letter-spacing:-.3px}
+.muted{color:var(--mut)}.small{font-size:13px}
+.card{background:var(--card);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.card h4{margin:0 0 10px;font-size:15px}
+.hero{padding:6px 2px 2px}
+.hero .lbl{color:var(--mut);font-size:13px}
+.hero .big{font-size:40px;font-weight:800;letter-spacing:-1px;margin:2px 0 4px}
+.hero .sub{color:var(--mut);font-size:14px}
+.add{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:var(--pri);color:#fff;font-weight:700;font-size:16px;padding:15px;border-radius:16px;margin:16px 0 4px}
+.day{display:flex;justify-content:space-between;margin:20px 4px 6px;font-size:13px;font-weight:600;color:var(--mut)}
+.list{background:var(--card);border-radius:18px;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.item{display:flex;align-items:center;gap:12px;padding:12px 14px;width:100%;text-align:left;border-bottom:1px solid var(--line)}
 .item:last-child{border-bottom:0}
-.ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex:none}
-.item .t{flex:1;min-width:0}.item .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-.item .t small{color:var(--mut);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:19px;flex:none;background:var(--bg)}
+.item .t{flex:1;min-width:0}
+.item .t b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .t small{display:block;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item .a{font-weight:700;white-space:nowrap}
-.item.pend{background:#fffbeb}
-.tag{font-size:11px;padding:2px 6px;border-radius:6px;background:#fef3c7;color:#92400e;margin-left:6px;font-weight:600}
-.warn{display:block;width:100%;text-align:left;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:12px;padding:10px 12px;margin:8px 0}
-.tabs{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:6px 0 calc(6px + env(safe-area-inset-bottom));z-index:5}
-.tabs button{display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--mut);padding:4px 14px;gap:2px}
-.tabs button i{font-style:normal;font-size:20px}
+.empty{text-align:center;color:var(--mut);padding:40px 16px}
+.banner{display:block;width:100%;text-align:left;background:#fff7ed;color:#9a3412;border-radius:14px;padding:12px 14px;margin:12px 0 0;font-weight:600}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:5}
+.tabs button{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--mut);padding:2px 16px}
+.tabs svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tabs button.on{color:var(--pri);font-weight:700}
-.ov{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:10;display:flex;align-items:flex-end;justify-content:center}
+.ov{position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:10;display:flex;align-items:flex-end;justify-content:center}
 .ov.hidden{display:none}
-.sheet{background:#fff;width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding:8px 18px calc(20px + env(safe-area-inset-bottom));animation:up .2s ease}
-@keyframes up{from{transform:translateY(40px);opacity:.5}}
-.grab{width:40px;height:4px;background:var(--line);border-radius:4px;margin:6px auto 10px}
-.sheet h3{margin:4px 0 6px;font-size:19px}
-.amt{display:flex;align-items:center;gap:6px;border-bottom:2px solid var(--pri);margin:6px 0 14px}
-.amt span{font-size:30px;font-weight:700;color:var(--mut)}
-.amt input{border:0;font-size:38px;font-weight:700;padding:6px 0;margin:0;background:transparent;outline:none}
-.cats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 10px}
-.cats button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px;border-radius:14px;border:1.5px solid var(--line);font-size:11.5px;line-height:1.15;text-align:center}
-.cats button b{font-size:22px;font-weight:400}
-.cats button.on{border-color:var(--pri);background:#f0fdfa;color:var(--pri);font-weight:600}
-.cats.err button{border-color:#fca5a5}
+.sheet{background:#fff;width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:24px 24px 0 0;padding:8px 18px calc(20px + env(safe-area-inset-bottom));animation:up .18s ease}
+@keyframes up{from{transform:translateY(30px);opacity:.6}}
+.grab{width:38px;height:4px;background:var(--line);border-radius:4px;margin:6px auto 12px}
+.sheet h3{margin:0 0 8px;font-size:18px}
+.amt{display:flex;align-items:baseline;gap:4px;border-bottom:2px solid var(--pri);margin:4px 0 14px}
+.amt span{font-size:28px;font-weight:700;color:var(--mut)}
+.amt input{border:0;font-size:36px;font-weight:800;padding:4px 0;margin:0;background:transparent}
+.cats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:4px 0 10px}
+.cats button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 2px;border-radius:14px;background:var(--bg);font-size:11.5px;line-height:1.2;border:1.5px solid transparent}
+.cats button b{font-size:21px;font-weight:400}
+.cats button.on{background:var(--soft);border-color:var(--pri);color:var(--pri);font-weight:700}
+.cats.err button{border-color:#fecaca}
 .chips{display:flex;gap:8px;margin:6px 0;flex-wrap:wrap}
-.chips button{padding:8px 14px;border-radius:999px;border:1.5px solid var(--line);font-weight:500}
-.chips button.on{border-color:var(--pri);background:var(--pri);color:#fff}
-.btn{padding:14px 16px;border-radius:14px;font-weight:600;background:var(--line);flex:1;text-align:center}
+.chips button{padding:7px 14px;border-radius:999px;background:var(--bg);font-weight:500;border:1.5px solid transparent}
+.chips button.on{background:var(--soft);border-color:var(--pri);color:var(--pri);font-weight:700}
+.btn{display:block;width:100%;padding:14px;border-radius:14px;font-weight:700;text-align:center;background:var(--bg);margin-top:8px}
 .btn.pri{background:var(--pri);color:#fff}
-.btn.danger{background:#fee2e2;color:var(--red);flex:none}
-.btn.ghost{background:transparent;border:1.5px solid var(--line);width:100%;margin-top:8px;display:block}
-.btn.big{width:100%;font-size:17px;padding:16px;display:block}
-.row{display:flex;gap:10px;margin-top:12px}
-.muted{color:var(--mut)}.small{font-size:12.5px}
-.cam{position:relative;border-radius:18px;overflow:hidden;background:#000;aspect-ratio:1}
-.cam video{width:100%;height:100%;object-fit:cover;display:block}
-.frame{position:absolute;inset:18%;border:3px solid rgba(255,255,255,.9);border-radius:18px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0}
-.card h4{margin:0 0 10px}
-.mnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.mnav button{font-size:24px;padding:4px 16px}
-.mnav b{font-size:17px}
-.big2{font-size:30px;font-weight:800;margin:2px 0}
-.crow{display:flex;align-items:center;gap:10px;padding:8px 0;width:100%;text-align:left}
+.btn.danger{color:var(--red)}
+.row{display:flex;gap:10px}.row .btn{flex:1}
+.atts{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.att{position:relative;width:72px;height:72px;border-radius:12px;overflow:hidden;background:var(--bg);display:grid;place-items:center;font-size:11px;color:var(--mut);text-align:center;cursor:pointer}
+.att img{width:100%;height:100%;object-fit:cover}
+.att .x{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:13px;line-height:22px}
+.attadd{width:72px;height:72px;border-radius:12px;border:1.5px dashed #cbd5e1;color:var(--mut);font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+.attadd b{font-size:20px;font-weight:400}
+.mnav{display:flex;align-items:center;justify-content:space-between;margin:0 0 4px}
+.mnav button{font-size:22px;padding:4px 14px;color:var(--mut)}
+.mnav b{font-size:16px}
+.crow{display:flex;align-items:center;gap:10px;padding:7px 0;width:100%;text-align:left}
 .crow .g{flex:1;min-width:0}
-.crow .bar{height:8px;border-radius:6px;background:var(--line);overflow:hidden;margin-top:5px}
-.crow .bar i{display:block;height:100%;border-radius:6px}
-.daily{display:flex;align-items:flex-end;gap:2px;height:110px;margin-top:8px}
-.daily div{flex:1;background:var(--pri2);border-radius:3px 3px 0 0;min-height:2px}
+.bar{height:6px;border-radius:6px;background:var(--bg);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;border-radius:6px;background:var(--pri)}
+.daily{display:flex;align-items:flex-end;gap:2px;height:96px;margin-top:6px}
+.daily div{flex:1;background:var(--pri);opacity:.85;border-radius:3px 3px 0 0;min-height:2px}
 .daily div.z{background:var(--line)}
 .dlab{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-top:4px}
-.mitem{padding:12px 0;border-bottom:1px solid var(--line)}
-.mitem:last-child{border-bottom:0}
+.stat{display:flex;gap:8px}.stat div{flex:1;background:var(--bg);border-radius:12px;padding:10px;text-align:center;font-size:12px;color:var(--mut)}.stat b{display:block;font-size:19px;color:var(--ink)}
+label.file{display:block;text-align:center;padding:16px;border:1.5px dashed #99d5cc;border-radius:14px;color:var(--pri);font-weight:700;cursor:pointer;margin-top:8px}
+label.file input,label.attadd input{display:none}
+.mitem{padding:12px 0;border-bottom:1px solid var(--line)}.mitem:last-child{border-bottom:0}
 .mitem .top{display:flex;justify-content:space-between;gap:10px}
-.mini{display:flex;gap:6px;overflow-x:auto;padding:8px 0 4px}
-.mini button{flex:none;font-size:20px;width:42px;height:42px;border-radius:12px;border:1.5px solid var(--line)}
-.mini button.on{border-color:var(--pri);background:#ccfbf1}
-.mitem .row{margin-top:6px}.mitem .btn{padding:10px}
-.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;z-index:30;font-size:14px;max-width:90vw}
-.stat{display:flex;gap:10px}.stat div{flex:1;background:var(--bg);border-radius:12px;padding:10px;text-align:center;font-size:12px;color:var(--mut)}.stat b{display:block;font-size:20px;color:var(--ink)}
-.empty{text-align:center;color:var(--mut);padding:36px 20px}
-label.file{display:block;text-align:center;padding:18px;border:2px dashed #99f6e4;border-radius:14px;color:var(--pri);font-weight:600;cursor:pointer;margin-top:8px}
-label.file input{display:none}
-ol.steps{padding-left:20px;margin:6px 0;color:var(--mut)}ol.steps li{margin:4px 0}
+.mini{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px}
+.mini button{flex:none;font-size:19px;width:40px;height:40px;border-radius:12px;background:var(--bg);border:1.5px solid transparent}
+.mini button.on{border-color:var(--pri);background:var(--soft)}
+.srow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);width:100%;text-align:left}
+.srow:last-child{border-bottom:0}
+.srow span{flex:1}
+.srow .chev{color:#cbd5e1;font-size:18px;flex:none}
+.status{font-size:13px;font-weight:700}
+.ok{color:var(--pri)}.bad{color:var(--red)}
 .catrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
-.catrow span{flex:1}
-.catrow button{color:var(--red);font-size:13px}
+.catrow span{flex:1}.catrow button{color:var(--red);font-size:13px}
+.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;z-index:30;font-size:14px;max-width:90vw}
+.foot{text-align:center;color:#9ca3af;font-size:12px;margin:18px 0}
 </style>
 </head>
 <body>
 <main id="view"></main>
 <nav class="tabs">
-  <button data-t="home" class="on"><i>🏠</i>Home</button>
-  <button data-t="reports"><i>📊</i>Reports</button>
-  <button data-t="check"><i>🧾</i>Statement</button>
-  <button data-t="more"><i>⚙️</i>More</button>
+  <button data-t="home" class="on"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
+  <button data-t="reports"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Reports</button>
+  <button data-t="check"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h6"/></svg>Statement</button>
+  <button data-t="more"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Settings</button>
 </nav>
 <div id="ov" class="ov hidden"><div class="sheet" id="sheet"></div></div>
 
 <script>
-/* ============ Kharcha – data ============ */
-const LS='kharcha.v1';
-const DEF_CATS=[['food','Food','🍔','#f97316'],['groc','Groceries','🛒','#84cc16'],['travel','Travel','🚕','#0ea5e9'],['shop','Shopping','🛍️','#ec4899'],['bills','Bills & Recharge','💡','#eab308'],['study','Study','📚','#6366f1'],['health','Health','💊','#ef4444'],['fun','Fun','🎬','#a855f7'],['friends','Friends','🤝','#14b8a6'],['home','Home','🏠','#78716c'],['gift','Gifts','🎁','#f43f5e'],['other','Other','📦','#64748b']].map(([id,name,emoji,color])=>({id,name,emoji,color}));
-const MODES=['UPI','Cash','Card','Bank'];
+const VERSION='4.0';
 const APP=window.KharchaApp||null;
-const APK_URL='https://github.com/dhbhojani12-create/Kharcha/releases/download/apk/Kharcha.apk';
-let S=load();
-function load(){try{const s=JSON.parse(localStorage.getItem(LS));if(s&&Array.isArray(s.expenses)){s.cats=s.cats||DEF_CATS;s.rules=s.rules||{};s.seen=s.seen||{};return s}}catch(e){}return{v:1,expenses:[],cats:DEF_CATS.slice(),rules:{},seen:{},pendingId:null}}
-function save(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){toast('⚠️ Could not save – storage full?')}syncNative()}
-function syncNative(){const A=window.KharchaApp;if(A&&A.setCats){try{A.setCats(JSON.stringify(S.cats.map(c=>({id:c.id,name:c.name,emoji:c.emoji}))));A.setRules(JSON.stringify(S.rules))}catch(e){}}}
+const POOLDRIVE='io.github.dhbhojani12.pooldrive';
 
-/* ============ helpers ============ */
+/* ---------- data ---------- */
+const LS='kharcha.v1';
+const DEF_CATS=[['food','Food','🍔'],['groc','Groceries','🛒'],['travel','Travel','🚕'],['shop','Shopping','🛍️'],['bills','Bills','💡'],['study','Study','📚'],['health','Health','💊'],['fun','Fun','🎬'],['friends','Friends','🤝'],['home','Home','🏠'],['gift','Gifts','🎁'],['other','Other','📦']].map(([id,name,emoji])=>({id,name,emoji}));
+const MODES=['UPI','Cash','Card','Bank'];
+let S=load();
+function load(){try{const s=JSON.parse(localStorage.getItem(LS));if(s&&Array.isArray(s.expenses)){s.cats=s.cats||DEF_CATS.slice();s.rules=s.rules||{};s.seen=s.seen||{};s.expenses=s.expenses.filter(e=>e.status!=='pending');return s}}catch(e){}return{v:2,expenses:[],cats:DEF_CATS.slice(),rules:{},seen:{}}}
+function save(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){toast('Could not save – storage full?')}syncNative()}
+function syncNative(){if(APP&&APP.setCats){try{APP.setCats(JSON.stringify(S.cats.map(c=>({id:c.id,name:c.name,emoji:c.emoji}))));APP.setRules(JSON.stringify(S.rules))}catch(e){}}}
+
+/* ---------- attachments (stored on the phone, IndexedDB) ---------- */
+let _db;
+function db(){return _db||(_db=new Promise((res,rej)=>{const r=indexedDB.open('kharcha',1);r.onupgradeneeded=()=>r.result.createObjectStore('files',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))}
+const toAB=blob=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsArrayBuffer(blob)});
+const unpack=o=>o?{...o,blob:o.data?new Blob([o.data],{type:o.type}):o.blob}:o;
+async function fput(o){const data=o.data||await toAB(o.blob);const rec={id:o.id,name:o.name,type:o.type,ts:o.ts,data};const d=await db();return new Promise((res,rej)=>{const t=d.transaction('files','readwrite');t.objectStore('files').put(rec);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+async function fget(id){const d=await db();return new Promise(res=>{const r=d.transaction('files').objectStore('files').get(id);r.onsuccess=()=>res(unpack(r.result));r.onerror=()=>res(null)})}
+async function fdel(id){const d=await db();return new Promise(res=>{const t=d.transaction('files','readwrite');t.objectStore('files').delete(id);t.oncomplete=res;t.onerror=res})}
+async function fall(){const d=await db();return new Promise(res=>{const r=d.transaction('files').objectStore('files').getAll();r.onsuccess=()=>res((r.result||[]).map(unpack));r.onerror=()=>res([])})}
+async function shrink(file){
+  if(!/^image\//.test(file.type)||file.size<350000)return file;
+  try{const bm=await createImageBitmap(file);const sc=Math.min(1,1600/Math.max(bm.width,bm.height));const c=document.createElement('canvas');c.width=Math.round(bm.width*sc);c.height=Math.round(bm.height*sc);c.getContext('2d').drawImage(bm,0,0,c.width,c.height);
+    const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.75));return b&&b.size<file.size?new File([b],(file.name||'photo').replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):file}catch(e){return file}}
+const b64=blob=>new Promise(res=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]||'');r.readAsDataURL(blob)});
+
+/* ---------- helpers ---------- */
 const $=s=>document.querySelector(s);
 const view=$('#view');
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const inr=n=>'₹'+(Math.round(n*100)/100).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const cat=id=>S.cats.find(c=>c.id===id)||S.cats.find(c=>c.id==='other')||{id:'other',name:'Other',emoji:'📦',color:'#64748b'};
-const payeeKey=s=>(s||'').toLowerCase().replace(/[^a-z0-9@.]/g,'');
+const cat=id=>S.cats.find(c=>c.id===id)||S.cats.find(c=>c.id==='other')||{id:'other',name:'Other',emoji:'📦'};
+const key=s=>(s||'').toLowerCase().replace(/[^a-z0-9@.]/g,'');
 const ym=d=>{d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
 const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const monthName=m=>{const[y,mm]=m.split('-');return MN[+mm-1]+' '+y};
 const sod=d=>{d=new Date(d);d.setHours(0,0,0,0);return d.getTime()};
 const sameDay=(a,b)=>sod(a)===sod(b);
 const sum=a=>a.reduce((s,e)=>s+e.amt,0);
-const okEx=()=>S.expenses.filter(e=>e.status!=='pending');
 const tm=t=>new Date(t).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'});
 function dayLabel(t){const n=Date.now();if(sameDay(t,n))return'Today';if(sameDay(t,n-864e5))return'Yesterday';const d=new Date(t);return d.getDate()+' '+MN[d.getMonth()]+(d.getFullYear()!==new Date().getFullYear()?' '+d.getFullYear():'')}
 function dtLocal(t){const d=new Date(t);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,16)}
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2200)}
-function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${src}"]`))return res();const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Could not load '+src+' – check internet'));document.head.appendChild(s)})}
+function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${src}"]`))return res();const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Needs internet the first time'));document.head.appendChild(s)})}
 const loadXLSX=()=>window.XLSX?Promise.resolve():loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
-const loadJsQR=()=>window.jsQR?Promise.resolve():loadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js');
-
-const KW=[[/swiggy|zomato|domino|mcdonald|kfc|pizza|cafe|restaurant|hotel|food|bakery|chai|tea|canteen|burger|starbucks|eatclub/i,'food'],
-[/blinkit|zepto|bigbasket|dmart|instamart|grocer|kirana|supermarket|reliance fresh|jiomart|milk|dairy/i,'groc'],
-[/uber|ola|rapido|irctc|metro|railway|petrol|fuel|indianoil|iocl|hpcl|bpcl|fastag|redbus|makemytrip|indigo|parking|auto/i,'travel'],
-[/amazon|flipkart|myntra|ajio|meesho|nykaa|croma|decathlon|tatacliq/i,'shop'],
-[/airtel|jio|vodafone|\bvi\b|bsnl|electric|power|bescom|mseb|adani|torrent|recharge|broadband|gas|bill|tata ?play|dth/i,'bills'],
-[/icai|book|udemy|course|coaching|xerox|stationery|unacademy|exam/i,'study'],
-[/apollo|pharm|medplus|hospital|clinic|1mg|netmeds|chemist|medical|lab/i,'health'],
-[/netflix|spotify|hotstar|bookmyshow|prime|pvr|inox|youtube|steam|playstore/i,'fun']];
-const guessCat=s=>{for(const[r,c]of KW)if(r.test(s||''))return S.cats.some(x=>x.id===c)?c:'';return''};
-function suggest(payee,vpa,extra){return S.rules[payeeKey(payee)]||S.rules[payeeKey(vpa)]||guessCat([payee,vpa,extra].join(' '))}
-function learn(payee,vpa,c){if(!c)return;if(payee)S.rules[payeeKey(payee)]=c;if(vpa)S.rules[payeeKey(vpa)]=c}
-const catGrid=(sel,id='gCats')=>`<div class="cats" id="${id}">${S.cats.map(c=>`<button data-c="${c.id}" class="${c.id===sel?'on':''}"><b>${c.emoji}</b>${esc(c.name)}</button>`).join('')}</div>`;
-function bindPick(el,attr,onPick){el.addEventListener('click',ev=>{const b=ev.target.closest(`button[${attr}]`);if(!b)return;el.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');el.classList.remove('err');onPick&&onPick(b.getAttribute(attr))})}
-const picked=(el,attr)=>{const b=el.querySelector('button.on');return b?b.getAttribute(attr):''};
+const loadZip=()=>window.JSZip?Promise.resolve():loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
 const parseAmt=v=>{const n=parseFloat(String(v).replace(/[^0-9.]/g,''));return isFinite(n)?Math.round(n*100)/100:0};
 
-/* ============ sheet (bottom modal) ============ */
-let camStream=null,scanning=false;
-function openSheet(html,mount){$('#sheet').innerHTML='<div class="grab"></div>'+html;$('#ov').classList.remove('hidden');mount&&mount($('#sheet'))}
-function closeSheet(){stopCam();$('#ov').classList.add('hidden');$('#sheet').innerHTML='';if(Q.length)setTimeout(nextQueued,350)}
+const KW=[[/swiggy|zomato|domino|mcdonald|kfc|pizza|cafe|restaurant|hotel|food|bakery|chai|tea|canteen|burger|starbucks/i,'food'],
+[/blinkit|zepto|bigbasket|dmart|instamart|grocer|kirana|supermarket|jiomart|milk|dairy/i,'groc'],
+[/uber|ola|rapido|irctc|metro|railway|petrol|fuel|indianoil|iocl|hpcl|bpcl|fastag|redbus|makemytrip|indigo|parking/i,'travel'],
+[/amazon|flipkart|myntra|ajio|meesho|nykaa|croma|decathlon/i,'shop'],
+[/airtel|jio|vodafone|\bvi\b|bsnl|electric|power|recharge|broadband|gas|bill|dth/i,'bills'],
+[/icai|book|udemy|course|coaching|xerox|stationery|exam/i,'study'],
+[/apollo|pharm|medplus|hospital|clinic|1mg|netmeds|chemist|medical/i,'health'],
+[/netflix|spotify|hotstar|bookmyshow|prime|pvr|inox|youtube/i,'fun']];
+const guessCat=s=>{for(const[r,c]of KW)if(r.test(s||''))return S.cats.some(x=>x.id===c)?c:'';return''};
+const suggest=(payee,extra)=>S.rules[key(payee)]||guessCat([payee,extra].join(' '));
+function learn(payee,c){if(payee&&c)S.rules[key(payee)]=c}
+const catGrid=(sel,id)=>`<div class="cats" id="${id}">${S.cats.map(c=>`<button data-c="${c.id}" class="${c.id===sel?'on':''}"><b>${c.emoji}</b>${esc(c.name)}</button>`).join('')}</div>`;
+function bindPick(el,attr,cb){el.addEventListener('click',ev=>{const b=ev.target.closest(`button[${attr}]`);if(!b)return;el.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');el.classList.remove('err');cb&&cb(b.getAttribute(attr))})}
+const picked=(el,attr)=>{const b=el.querySelector('button.on');return b?b.getAttribute(attr):''};
+
+/* ---------- bottom sheet ---------- */
+const urls=[];let onSheetClose=null;
+function openSheet(html,mount){onSheetClose=null;$('#sheet').innerHTML='<div class="grab"></div>'+html;$('#ov').classList.remove('hidden');mount&&mount($('#sheet'))}
+function closeSheet(){const f=onSheetClose;onSheetClose=null;if(f)f();$('#ov').classList.add('hidden');$('#sheet').innerHTML='';urls.splice(0).forEach(u=>URL.revokeObjectURL(u));if(Q.length)setTimeout(nextQueued,300)}
 $('#ov').addEventListener('click',e=>{if(e.target.id==='ov')closeSheet()});
 
-/* ============ add / edit ============ */
+/* ---------- add / edit expense (with bills) ---------- */
 function addSheet(e){
-  const x=Object.assign({amt:'',cat:'',mode:'UPI',payee:'',note:'',ts:Date.now()},e||{});
-  openSheet(`<h3>${x.id?'Edit expense':'Quick add'}</h3>
+  const x=Object.assign({amt:'',cat:'',mode:'UPI',payee:'',note:'',ts:Date.now(),att:[]},e||{});
+  let att=(x.att||[]).slice();const added=[],removed=[];let saved=false;
+  openSheet(`<h3>${x.id?'Edit expense':'Add expense'}</h3>
   <div class="amt"><span>₹</span><input id="fAmt" inputmode="decimal" placeholder="0" value="${x.amt||''}"></div>
   ${catGrid(x.cat,'fCats')}
+  <input id="fPayee" placeholder="Paid to" value="${esc(x.payee)}">
+  <input id="fNote" placeholder="Note" value="${esc(x.note)}">
   <div class="chips" id="fMode">${MODES.map(m=>`<button data-m="${m}" class="${m===x.mode?'on':''}">${m}</button>`).join('')}</div>
-  <input id="fPayee" placeholder="Paid to (optional)" value="${esc(x.payee)}">
-  <input id="fNote" placeholder="Note – e.g. lunch with friends (optional)" value="${esc(x.note)}">
   <input id="fTs" type="datetime-local" value="${dtLocal(x.ts)}">
-  <div class="row"><button class="btn pri" id="fSave">Save</button>${x.id?'<button class="btn danger" id="fDel">Delete</button>':''}</div>`,sh=>{
+  <div class="small muted" style="margin:10px 2px 0">Bill / invoice</div>
+  <div class="atts" id="fAtts"></div>
+  <button class="btn pri" id="fSave">Save</button>
+  ${x.id?'<button class="btn danger" id="fDel">Delete expense</button>':''}`,sh=>{
+    onSheetClose=()=>{if(!saved)added.forEach(id=>fdel(id))};
     const cats=sh.querySelector('#fCats');bindPick(cats,'data-c');bindPick(sh.querySelector('#fMode'),'data-m');
     sh.querySelector('#fPayee').addEventListener('change',ev=>{if(!picked(cats,'data-c')){const s=suggest(ev.target.value);if(s)cats.querySelector(`[data-c="${s}"]`)?.classList.add('on')}});
     if(!x.id)setTimeout(()=>sh.querySelector('#fAmt')?.focus(),150);
+    const box=sh.querySelector('#fAtts');
+    async function draw(){
+      let h='';
+      for(const id of att){const f=await fget(id);if(!f)continue;
+        if(/^image\//.test(f.type)){const u=URL.createObjectURL(f.blob);urls.push(u);h+=`<div class="att" data-v="${id}"><img src="${u}"><button class="x" data-x="${id}">✕</button></div>`}
+        else h+=`<div class="att" data-v="${id}">📄<br>${esc((f.name||'file').slice(0,12))}<button class="x" data-x="${id}">✕</button></div>`}
+      h+=`<label class="attadd"><b>📷</b>Camera<input type="file" accept="image/*" capture="environment" data-in></label><label class="attadd"><b>📎</b>File / PDF<input type="file" accept="image/*,application/pdf" multiple data-in></label>`;
+      box.innerHTML=h;
+      box.querySelectorAll('[data-in]').forEach(inp=>inp.onchange=async ev=>{
+        for(const f0 of ev.target.files){if(f0.size>15e6){toast('File too big (max 15 MB)');continue}
+          const f=await shrink(f0);const id='f'+uid();await fput({id,name:f.name||f0.name||'file',type:f.type||f0.type,blob:f,ts:Date.now()});att.push(id);added.push(id)}
+        draw()});
+      box.querySelectorAll('[data-x]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();const id=b.dataset.x;att=att.filter(a=>a!==id);removed.push(id);draw()});
+      box.querySelectorAll('[data-v]').forEach(d=>d.onclick=()=>viewFile(d.dataset.v));
+    }
+    draw();
     sh.querySelector('#fSave').onclick=()=>{
       const amt=parseAmt(sh.querySelector('#fAmt').value);if(!amt){toast('Enter an amount');return}
       const c=picked(cats,'data-c');if(!c){cats.classList.add('err');toast('Pick a category');return}
-      const rec={...x,amt,cat:c,mode:picked(sh.querySelector('#fMode'),'data-m')||'UPI',payee:sh.querySelector('#fPayee').value.trim(),note:sh.querySelector('#fNote').value.trim(),ts:new Date(sh.querySelector('#fTs').value).getTime()||Date.now()};
-      if(x.id){const i=S.expenses.findIndex(z=>z.id===x.id);S.expenses[i]=rec}else{rec.id=uid();rec.src=x.src||'manual';rec.status='ok';S.expenses.push(rec)}
-      learn(rec.payee,rec.vpa,c);save();closeSheet();render();toast('Saved ✓')};
-    const d=sh.querySelector('#fDel');if(d)d.onclick=()=>{if(!confirm('Delete this expense?'))return;S.expenses=S.expenses.filter(z=>z.id!==x.id);save();closeSheet();render();toast('Deleted')};
+      const r={...x,amt,cat:c,mode:picked(sh.querySelector('#fMode'),'data-m')||'UPI',payee:sh.querySelector('#fPayee').value.trim(),note:sh.querySelector('#fNote').value.trim(),ts:new Date(sh.querySelector('#fTs').value).getTime()||Date.now(),att};
+      if(!att.length)delete r.att;
+      if(x.id){const i=S.expenses.findIndex(z=>z.id===x.id);S.expenses[i]=r}else{r.id=uid();r.src=x.src||'manual';S.expenses.push(r)}
+      removed.forEach(id=>fdel(id));
+      learn(r.payee,c);save();saved=true;closeSheet();render();toast('Saved ✓')};
+    const d=sh.querySelector('#fDel');if(d)d.onclick=()=>{if(!confirm('Delete this expense?'))return;(x.att||[]).concat(added).forEach(id=>fdel(id));S.expenses=S.expenses.filter(z=>z.id!==x.id);save();saved=true;closeSheet();render();toast('Deleted')};
   });
+}
+async function viewFile(id){
+  const f=await fget(id);if(!f)return;
+  if(/^image\//.test(f.type)){const u=URL.createObjectURL(f.blob);
+    const v=document.createElement('div');v.style.cssText='position:fixed;inset:0;background:#000;z-index:40;display:flex;align-items:center;justify-content:center';
+    v.innerHTML=`<img src="${u}" style="max-width:100%;max-height:100%"><button style="position:fixed;top:14px;right:18px;color:#fff;font-size:26px">✕</button>`;
+    v.onclick=()=>{v.remove();URL.revokeObjectURL(u)};document.body.appendChild(v);return}
+  if(APP&&APP.openFile){APP.openFile(f.name||'document.pdf',await b64(f.blob),f.type||'application/pdf');return}
+  window.open(URL.createObjectURL(f.blob),'_blank');
 }
 
-/* ============ scan & pay ============ */
-function stopCam(){scanning=false;if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}}
-async function decodeFrom(src){ // src: video or image element / bitmap
-  if('BarcodeDetector' in window){try{const det=new BarcodeDetector({formats:['qr_code']});const r=await det.detect(src);if(r[0])return r[0].rawValue}catch(e){}}
-  await loadJsQR();const w=src.videoWidth||src.naturalWidth||src.width,h=src.videoHeight||src.naturalHeight||src.height;if(!w||!h)return null;
-  const sc=Math.min(1,800/Math.max(w,h));const cv=document.createElement('canvas');cv.width=w*sc;cv.height=h*sc;const cx=cv.getContext('2d',{willReadFrequently:true});cx.drawImage(src,0,0,cv.width,cv.height);
-  const r=jsQR(cx.getImageData(0,0,cv.width,cv.height).data,cv.width,cv.height);return r?r.data:null}
-function scanSheet(){
-  openSheet(`<h3>Scan QR</h3><p class="muted small" style="margin-top:0">Scan the UPI QR – shop QRs open pre-filled in your payment app.</p>
-  <div class="cam"><video id="vid" playsinline muted></video><div class="frame"></div></div>
-  <p class="muted" id="scanMsg" style="text-align:center">Starting camera…</p>
-  <label class="btn ghost">🖼️ Pick QR photo from gallery<input type="file" accept="image/*" id="qrImg" hidden></label>
-  <button class="btn ghost" id="manualVpa">⌨️ Type UPI ID instead</button>`,async sh=>{
-    const msg=sh.querySelector('#scanMsg');
-    sh.querySelector('#manualVpa').onclick=()=>{const v=prompt('UPI ID (e.g. name@okaxis)');if(v&&v.includes('@'))handleQR('upi://pay?pa='+encodeURIComponent(v.trim()));else if(v)toast('That doesn\'t look like a UPI ID')};
-    sh.querySelector('#qrImg').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;const img=new Image();img.src=URL.createObjectURL(f);await img.decode();const t=await decodeFrom(img);t?handleQR(t):toast('No QR found in that photo')};
-    try{
-      camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
-      const v=sh.querySelector('#vid');v.srcObject=camStream;await v.play();msg.textContent='Point at the UPI QR code';scanning=true;
-      const loop=async()=>{if(!scanning)return;try{const t=await decodeFrom(v);if(t&&scanning){if(/^upi:/i.test(t)){stopCam();handleQR(t);return}msg.textContent='That QR is not a UPI payment QR'}}catch(e){}setTimeout(loop,250)};loop();
-    }catch(e){msg.textContent='Camera not available – allow camera permission, or pick a photo / type UPI ID below.'}
-  });
+/* ---------- payments captured by the Android app ---------- */
+let Q=[];
+function importDone(it){
+  const c=S.cats.some(x=>x.id===it.cat)?it.cat:'other';
+  if(S.expenses.some(e=>e.src==='auto'&&e.ts===it.ts))return;
+  S.expenses.push({id:uid(),amt:it.amt,cat:c,payee:it.payee||'',note:it.note||'',mode:'UPI',ts:it.ts,src:'auto'});
+  learn(it.payee,c);
 }
-function handleQR(text){
-  const q=(text.split('?')[1]||'');const p=new URLSearchParams(q);const pa=p.get('pa');
-  if(!pa){toast('No UPI ID in this QR');return}
-  payForm({p,pa,pn:p.get('pn')||'',am:p.get('am')||''});
-}
-const PAY_APPS=[['com.samsung.android.spay','Samsung Wallet'],['com.phonepe.app','PhonePe'],['com.google.android.apps.nbu.paisa.user','Google Pay'],['net.one97.paytm','Paytm'],['in.org.npci.upiapp','BHIM']];
-const payPkg=()=>S.payApp||PAY_APPS[0][0];
-const payName=()=>(PAY_APPS.find(x=>x[0]===payPkg())||PAY_APPS[0])[1];
-const isShopQR=q=>q&&q.p&&q.p.get('mc')&&q.p.get('mc')!=='0000';
-function upiQS(q,amt,note){const p=new URLSearchParams(q.p);if(!parseAmt(p.get('am')))p.set('am',amt.toFixed(2));if(!p.get('cu'))p.set('cu','INR');if(!p.get('tn')&&note)p.set('tn',note.slice(0,40));return[...p].map(([k,v])=>k+'='+encodeURIComponent(v).replace(/%40/g,'@')).join('&')}
-const FB=()=>encodeURIComponent(location.origin+location.pathname+'?launchfail=1');
-const LAUNCH={
- 'com.samsung.android.spay':[['spay','Samsung link',()=>`intent://#Intent;scheme=samsungpay;package=com.samsung.android.spay;S.browser_fallback_url=${FB()};end`],
-   ['spay2','Samsung link (short)',()=>'samsungpay://'],
-   ['upi','UPI screen',()=>`intent://pay#Intent;scheme=upi;package=com.samsung.android.spay;S.browser_fallback_url=${FB()};end`]],
- 'com.phonepe.app':[['pp','PhonePe link',()=>`intent://#Intent;scheme=phonepe;package=com.phonepe.app;S.browser_fallback_url=${FB()};end`]],
- 'com.google.android.apps.nbu.paisa.user':[['gp','GPay link',()=>`intent://upi/#Intent;scheme=tez;package=com.google.android.apps.nbu.paisa.user;S.browser_fallback_url=${FB()};end`]],
- 'net.one97.paytm':[['pt','Paytm link',()=>`intent://#Intent;scheme=paytmmp;package=net.one97.paytm;S.browser_fallback_url=${FB()};end`]],
- 'in.org.npci.upiapp':[['bh','BHIM UPI screen',()=>`intent://pay#Intent;scheme=upi;package=in.org.npci.upiapp;S.browser_fallback_url=${FB()};end`]]};
-function launchUrl(id){const l=LAUNCH[payPkg()]||[];return((l.find(x=>x[0]===(id||S.launch))||l[0])[2])()}
-function openPayApp(id){askedAt=Date.now();if(APP&&!id){if(!APP.openApp(payPkg()))toast(payName()+' is not installed');return}openUPI(launchUrl(id))}
-function testLaunchSheet(){
-  const l=LAUNCH[payPkg()]||[];
-  openSheet(`<h3>🔧 Test opening ${payName()}</h3><p class="muted small" style="margin-top:0">Tap <b>Try</b> on each one. Whichever opens ${payName()} – come back and tap <b>Use this</b>.</p>
-  ${l.map(([id,n],i)=>`<div class="catrow"><span><b>${i+1}.</b> ${n}${(S.launch||l[0][0])===id?' <span class="tag">in use</span>':''}</span><button data-try="${id}" style="color:var(--pri);font-weight:600;padding:6px 10px">Try</button><button data-use="${id}" style="color:var(--ink);font-weight:600;padding:6px 10px">Use this</button></div>`).join('')}`,sh=>{
-    sh.querySelectorAll('[data-try]').forEach(b=>b.onclick=()=>openPayApp(b.dataset.try));
-    sh.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{S.launch=b.dataset.use;save();closeSheet();toast('Saved ✓ – Pay will use this')});
-  });
-}
-function openPrefilled(q,amt,note){askedAt=Date.now();if(APP){APP.openUpi('upi://pay?'+upiQS(q,amt,note),payPkg());return}openUPI(`intent://pay?${upiQS(q,amt,note)}#Intent;scheme=upi;package=${payPkg()};end`)}
-let draft={};
-function payForm(q){
-  const name=q?(q.pn||q.pa):'';const fixed=q&&parseAmt(q.am)>0;const sug=(q&&suggest(q.pn,q.pa))||draft.cat||'';
-  openSheet(`<h3>${q?'Pay '+esc(name):'💸 Pay'}</h3>${q?`<p class="muted small" style="margin-top:0">${esc(q.pa)}${isShopQR(q)?' · 🏪 shop':''}</p>`:''}
-  <div class="amt"><span>₹</span><input id="pAmt" inputmode="decimal" placeholder="0" value="${fixed?parseAmt(q.am):(draft.amt||'')}" ${fixed?'readonly':''}></div>
-  <p class="small muted" style="margin:-6px 0 4px">What is this for?</p>
-  ${catGrid(sug,'pCats')}
-  <input id="pNote" placeholder="Note (optional)" value="${esc(draft.note||'')}">
-  ${q?'':`<input id="pPayee" placeholder="Paying to (optional)" value="${esc(draft.payee||'')}"><button class="btn ghost" id="pScan" style="font-size:14px">📷 Scan QR here instead (fills the name)</button>`}
-  <button class="btn pri big" id="pGo" style="margin-top:10px">Open ${payName()} →</button>
-  <p class="muted small" style="text-align:center">${q&&isShopQR(q)?'Payment opens pre-filled – just confirm.':'Scan &amp; pay in '+payName()+', then come back and tap ✅.'}</p>`,sh=>{
-    const cats=sh.querySelector('#pCats');bindPick(cats,'data-c');
-    if(!fixed)setTimeout(()=>sh.querySelector('#pAmt')?.focus(),150);
-    const keep=()=>{draft={amt:sh.querySelector('#pAmt').value,cat:picked(cats,'data-c'),note:sh.querySelector('#pNote').value,payee:sh.querySelector('#pPayee')?.value||''}};
-    const sc=sh.querySelector('#pScan');if(sc)sc.onclick=()=>{keep();scanSheet()};
-    sh.querySelector('#pGo').onclick=()=>{
-      const amt=parseAmt(sh.querySelector('#pAmt').value);if(!amt){toast('Enter an amount');return}
-      const c=picked(cats,'data-c');if(!c){cats.classList.add('err');toast('Pick a category');return}
-      const note=sh.querySelector('#pNote').value.trim();const payee=q?(q.pn||q.pa):(sh.querySelector('#pPayee').value.trim());
-      const e={id:uid(),amt,cat:c,mode:'UPI',payee,vpa:q?q.pa:'',note,ts:Date.now(),src:q?'scan':'pay',status:'pending'};
-      S.expenses.push(e);S.pendingId=e.id;learn(payee,e.vpa,c);save();draft={};render();
-      payNowSheet(e,q);
-      if(q&&isShopQR(q))openPrefilled(q,amt,note);else openPayApp();
-    };
-  });
-}
-let askedAt=0;
-function openUPI(url){location.href=url}
-function payNowSheet(e,q){
-  openSheet(`<h3>Pay in ${payName()}</h3><p class="muted" style="margin-top:0">Saved ✓ – after paying, tap <b>Paid</b>.</p>
-  <div class="card" style="text-align:center;margin:8px 0"><div class="big2">${inr(e.amt)}</div><div>${esc(e.payee||cat(e.cat).name)}</div><div class="small muted">${esc(e.vpa||'')}</div></div>
-  <button class="btn pri big" id="nPaid">✅ Paid</button>
-  <button class="btn ghost" id="nNo">❌ Didn't pay – remove it</button>
-  <button class="btn ghost" id="nOpen">↗️ Open ${payName()} again</button>
-  <button class="btn ghost" id="nTest" style="font-size:13px">App didn't open? 🔧 Try other ways</button>
-  ${q&&!isShopQR(q)?`<button class="btn ghost" id="nTry" style="font-size:13px">Try pre-filled payment (may be blocked for personal QRs)</button>`:''}`,sh=>{
-    sh.querySelector('#nPaid').onclick=()=>{e.status='ok';if(S.pendingId===e.id)S.pendingId=null;save();closeSheet();render();toast('Saved ✓')};
-    sh.querySelector('#nNo').onclick=()=>{S.expenses=S.expenses.filter(x=>x.id!==e.id);if(S.pendingId===e.id)S.pendingId=null;save();closeSheet();render();toast('Removed')};
-    sh.querySelector('#nOpen').onclick=()=>openPayApp();sh.querySelector('#nTest').onclick=()=>{askedAt=Date.now();testLaunchSheet()};
-    const t=sh.querySelector('#nTry');if(t)t.onclick=()=>openPrefilled(q,e.amt,e.note);
-  });
-}
-function confirmSheet(e){
-  e=e||S.expenses.find(x=>x.id===S.pendingId);if(!e){S.pendingId=null;save();return}
-  openSheet(`<h3>Did the payment go through?</h3><p class="muted"><b style="color:var(--ink);font-size:22px">${inr(e.amt)}</b> to ${esc(e.payee)}<br>${cat(e.cat).emoji} ${esc(cat(e.cat).name)}${e.note?' · '+esc(e.note):''}</p>
-  <button class="btn pri big" id="cYes">✅ Yes, paid</button>
-  <button class="btn ghost" id="cNo">❌ No, it failed / cancelled</button>
-  <button class="btn ghost" id="cLater">Ask me later</button>`,sh=>{
-    sh.querySelector('#cYes').onclick=()=>{e.status='ok';if(S.pendingId===e.id)S.pendingId=null;save();closeSheet();render();toast('Saved ✓')};
-    sh.querySelector('#cNo').onclick=()=>{S.expenses=S.expenses.filter(x=>x.id!==e.id);if(S.pendingId===e.id)S.pendingId=null;save();closeSheet();render();toast('Removed')};
-    sh.querySelector('#cLater').onclick=()=>{if(S.pendingId===e.id)S.pendingId=null;save();closeSheet();render()};
-  });
-}
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&S.pendingId&&Date.now()-askedAt>1500)setTimeout(()=>{if(S.pendingId&&$('#ov').classList.contains('hidden'))confirmSheet()},500)});
+function parseCapture(t){t=String(t||'');const m=t.match(/₹\s*([\d,]+(?:\.\d{1,2})?)/);const p=t.match(/ to (.+?)\.?$/m);return{amt:m?parseAmt(m[1]):0,payee:p?p[1].trim():''}}
+function nextQueued(){if(!Q.length||!$('#ov').classList.contains('hidden'))return;const it=Q.shift();const{amt,payee}=parseCapture(it.t);addSheet({amt,payee,cat:suggest(payee),mode:'UPI',ts:it.ts||Date.now(),src:'auto'});if(Q.length)setTimeout(()=>toast(Q.length+' more to tag'),400)}
+window.kharchaPoll=function(){if(!APP)return;try{const a=JSON.parse(APP.takePending()||'[]');let n=0;a.forEach(it=>{if(it.done){importDone(it);n++}else Q.push(it)});if(n){save();render()}nextQueued()}catch(e){}};
 
-/* ============ views ============ */
+/* ---------- views ---------- */
 let tab='home',month=ym(Date.now()),rec=null;
 document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.t;render();scrollTo(0,0)});
 function render(){document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));({home:vHome,reports:vReports,check:vCheck,more:vMore})[tab]()}
 
-function itemRow(e){const c=cat(e.cat);const pend=e.status==='pending';
-  return `<button class="item ${pend?'pend':''}" data-id="${e.id}"><div class="ico" style="background:${c.color}22">${c.emoji}</div>
-  <div class="t"><b>${esc(e.payee||c.name)}${pend?'<span class="tag">confirm?</span>':''}</b><small>${esc(c.name)}${e.note?' · '+esc(e.note):''} · ${e.mode} · ${e.src==='statement'?'from statement':tm(e.ts)}</small></div>
-  <div class="a">${inr(e.amt)}</div></button>`}
+function itemRow(e){const c=cat(e.cat);
+  return `<button class="item" data-id="${e.id}"><div class="ico">${c.emoji}</div><div class="t"><b>${esc(e.payee||c.name)}</b><small>${esc(c.name)}${e.note?' · '+esc(e.note):''}${e.att&&e.att.length?' · 📎':''} · ${e.src==='statement'?'statement':tm(e.ts)}</small></div><div class="a">${inr(e.amt)}</div></button>`}
 function groupList(arr){
-  if(!arr.length)return`<div class="empty">No expenses yet.<br>Next time you pay, tap <b>💸 Pay</b> – it takes 3 seconds.</div>`;
+  if(!arr.length)return`<div class="empty">No expenses yet.${APP?'<br>Pay with Samsung Wallet or GPay – Kharcha will ask you to tag it.':''}</div>`;
   const g={};arr.forEach(e=>{const k=sod(e.ts);(g[k]=g[k]||[]).push(e)});
-  return Object.keys(g).sort((a,b)=>b-a).map(k=>{const l=g[k];return`<div class="day"><span>${dayLabel(+k)}</span><span>${inr(sum(l.filter(e=>e.status!=='pending')))}</span></div><div class="list">${l.map(itemRow).join('')}</div>`}).join('');
+  return Object.keys(g).sort((a,b)=>b-a).map(k=>`<div class="day"><span>${dayLabel(+k)}</span><span>${inr(sum(g[k]))}</span></div><div class="list">${g[k].map(itemRow).join('')}</div>`).join('');
 }
-function bindItems(root){root.addEventListener('click',ev=>{const b=ev.target.closest('.item[data-id]');if(!b)return;const e=S.expenses.find(x=>x.id===b.dataset.id);if(!e)return;e.status==='pending'?confirmSheet(e):addSheet(e)})}
+function bindItems(root){root.addEventListener('click',ev=>{const b=ev.target.closest('.item[data-id]');if(!b)return;const e=S.expenses.find(x=>x.id===b.dataset.id);if(e)addSheet(e)})}
 
 function vHome(){
-  const now=Date.now(),m=ym(now),ok=okEx();
-  const mon=ok.filter(e=>ym(e.ts)===m),today=ok.filter(e=>sameDay(e.ts,now));
-  const pend=S.expenses.filter(e=>e.status==='pending');
+  const now=Date.now(),m=ym(now);
+  const mon=S.expenses.filter(e=>ym(e.ts)===m),today=S.expenses.filter(e=>sameDay(e.ts,now));
   const recent=[...S.expenses].sort((a,b)=>b.ts-a.ts).slice(0,80);
-  view.innerHTML=`<section class="hero"><div><small>Spent in ${monthName(m)}</small><h1>${inr(sum(mon))}</h1></div><div class="today"><small>Today</small><b>${inr(sum(today))}</b></div></section>
-  <div class="actions"><button class="act scan" id="hScan">💸<span>Pay</span></button><button class="act" id="hAdd">➕<span>Quick Add</span></button></div>
-  ${APP&&APP.hasAccessibility&&!APP.hasAccessibility()?`<button class="warn" id="hInst">⚡ Turn on instant capture – tap here</button>`:''}
-  ${pend.length?`<button class="warn" id="hPend">⏳ ${pend.length} payment${pend.length>1?'s':''} waiting – tap to confirm</button>`:''}
+  const needAcc=APP&&APP.hasAccessibility&&!APP.hasAccessibility();
+  view.innerHTML=`<div class="hero"><div class="lbl">${monthName(m)}</div><div class="big">${inr(sum(mon))}</div><div class="sub">Today ${inr(sum(today))} · ${mon.length} expense${mon.length===1?'':'s'}</div></div>
+  ${needAcc?'<button class="banner" id="hAcc">⚡ Turn on instant capture</button>':''}
+  <button class="add" id="hAdd">＋ Add expense</button>
   <div id="hList">${groupList(recent)}</div>`;
-  $('#hScan').onclick=()=>{draft={};payForm()};$('#hAdd').onclick=()=>addSheet();
-  if(pend.length)$('#hPend').onclick=()=>confirmSheet(pend[0]);
-  const ha=$('#hAcc');if(ha)ha.onclick=()=>APP.openNotifSettings();const ho=$('#hOv');if(ho)ho.onclick=()=>APP.openOverlaySettings();const hi=$('#hInst');if(hi)hi.onclick=()=>{tab='more';render()};
+  $('#hAdd').onclick=()=>addSheet();
+  if(needAcc)$('#hAcc').onclick=()=>{tab='more';render()};
   bindItems($('#hList'));
 }
 
 function vReports(){
-  const ex=okEx().filter(e=>ym(e.ts)===month),tot=sum(ex);
-  const [y,mm]=month.split('-').map(Number);const prevM=ym(new Date(y,mm-2,1));const prevT=sum(okEx().filter(e=>ym(e.ts)===prevM));
+  const ex=S.expenses.filter(e=>ym(e.ts)===month),tot=sum(ex);
+  const[y,mm]=month.split('-').map(Number);const prevM=ym(new Date(y,mm-2,1));const prevT=sum(S.expenses.filter(e=>ym(e.ts)===prevM));
   const byC={};ex.forEach(e=>byC[e.cat]=(byC[e.cat]||0)+e.amt);const cs=Object.entries(byC).sort((a,b)=>b[1]-a[1]);
-  const byP={};ex.forEach(e=>{const k=e.payee||cat(e.cat).name;byP[k]=byP[k]||{a:0,n:0};byP[k].a+=e.amt;byP[k].n++});const ps=Object.entries(byP).sort((a,b)=>b[1].a-a[1].a).slice(0,6);
+  const byP={};ex.forEach(e=>{const k=e.payee||cat(e.cat).name;byP[k]=byP[k]||{a:0,n:0};byP[k].a+=e.amt;byP[k].n++});const ps=Object.entries(byP).sort((a,b)=>b[1].a-a[1].a).slice(0,5);
   const dim=new Date(y,mm,0).getDate();const dd=Array(dim).fill(0);ex.forEach(e=>dd[new Date(e.ts).getDate()-1]+=e.amt);const mx=Math.max(...dd,1);
-  const byM={};ex.forEach(e=>byM[e.mode]=(byM[e.mode]||0)+e.amt);
-  const isCur=month===ym(Date.now());const daysGone=isCur?new Date().getDate():dim;
+  const isCur=month===ym(Date.now());const days=isCur?new Date().getDate():dim;
   const diff=prevT?Math.round((tot-prevT)/prevT*100):null;
-  view.innerHTML=`<div class="mnav"><button id="mPrev">‹</button><b>${monthName(month)}</b><button id="mNext" ${isCur?'style="opacity:.25" disabled':''}>›</button></div>
-  <div class="card"><div class="muted small">Total spent</div><div class="big2">${inr(tot)}</div>
-  <div class="small muted">${ex.length} expenses · avg ${inr(tot/Math.max(daysGone,1))}/day${diff!==null?` · ${diff>=0?'▲':'▼'} ${Math.abs(diff)}% vs ${monthName(prevM)}`:''}</div></div>
-  ${ex.length?`<div class="card"><h4>Where it went</h4>${cs.map(([c,a])=>{const k=cat(c);return`<button class="crow" data-c="${c}"><div class="ico" style="background:${k.color}22">${k.emoji}</div><div class="g"><div style="display:flex;justify-content:space-between"><b>${esc(k.name)}</b><b>${inr(a)}</b></div><div class="bar"><i style="width:${a/tot*100}%;background:${k.color}"></i></div></div><small class="muted" style="width:34px;text-align:right">${Math.round(a/tot*100)}%</small></button>`}).join('')}</div>
-  <div class="card"><h4>Day by day</h4><div class="daily">${dd.map(v=>`<div class="${v?'':'z'}" style="height:${v/mx*100}%" title="${inr(v)}"></div>`).join('')}</div><div class="dlab"><span>1</span><span>${Math.ceil(dim/2)}</span><span>${dim}</span></div></div>
-  <div class="card"><h4>Top places / people</h4>${ps.map(([p,o])=>`<div class="crow"><div class="g"><b>${esc(p)}</b><div class="small muted">${o.n} time${o.n>1?'s':''}</div></div><b>${inr(o.a)}</b></div>`).join('')}</div>
-  <div class="card"><h4>Paid by</h4><div class="stat">${MODES.filter(m=>byM[m]).map(m=>`<div><b>${inr(byM[m])}</b>${m}</div>`).join('')}</div></div>
-  <button class="btn ghost" id="mXls">⬇️ Export ${monthName(month)} to Excel</button>`:`<div class="empty">No expenses in ${monthName(month)}.</div>`}`;
+  view.innerHTML=`<div class="mnav"><button id="mPrev">‹</button><b>${monthName(month)}</b><button id="mNext" ${isCur?'style="opacity:.2" disabled':''}>›</button></div>
+  <div class="hero" style="text-align:center"><div class="big">${inr(tot)}</div><div class="sub">${ex.length} expenses · ${inr(tot/Math.max(days,1))}/day${diff!==null?` · ${diff>=0?'▲':'▼'} ${Math.abs(diff)}% vs last month`:''}</div></div>
+  ${ex.length?`<div class="card"><h4>By category</h4>${cs.map(([c,a])=>{const k=cat(c);return`<button class="crow" data-c="${c}"><div class="ico">${k.emoji}</div><div class="g"><div style="display:flex;justify-content:space-between"><span>${esc(k.name)}</span><b>${inr(a)}</b></div><div class="bar"><i style="width:${a/tot*100}%"></i></div></div></button>`}).join('')}</div>
+  <div class="card"><h4>Day by day</h4><div class="daily">${dd.map(v=>`<div class="${v?'':'z'}" style="height:${v/mx*100}%"></div>`).join('')}</div><div class="dlab"><span>1</span><span>${Math.ceil(dim/2)}</span><span>${dim}</span></div></div>
+  <div class="card"><h4>Top places & people</h4>${ps.map(([p,o])=>`<div class="crow"><div class="g">${esc(p)}<div class="small muted">${o.n} time${o.n>1?'s':''}</div></div><b>${inr(o.a)}</b></div>`).join('')}</div>
+  <button class="btn" id="mXls">Export ${monthName(month)} to Excel</button>`:`<div class="empty">Nothing spent in ${monthName(month)}.</div>`}`;
   $('#mPrev').onclick=()=>{month=prevM;render()};
   $('#mNext').onclick=()=>{if(!isCur){month=ym(new Date(y,mm,1));render()}};
   view.querySelectorAll('.crow[data-c]').forEach(b=>b.onclick=()=>{const c=cat(b.dataset.c);const l=ex.filter(e=>e.cat===b.dataset.c).sort((a,b)=>b.ts-a.ts);
-    openSheet(`<h3>${c.emoji} ${esc(c.name)} – ${monthName(month)}</h3><p class="muted" style="margin-top:0">${inr(sum(l))} · ${l.length} expenses</p><div class="list" id="cl">${l.map(itemRow).join('')}</div>`,sh=>bindItems(sh.querySelector('#cl')))});
+    openSheet(`<h3>${c.emoji} ${esc(c.name)}</h3><p class="muted" style="margin-top:0">${monthName(month)} · ${inr(sum(l))}</p><div class="list" id="cl">${l.map(itemRow).join('')}</div>`,sh=>bindItems(sh.querySelector('#cl')))});
   const x=$('#mXls');if(x)x.onclick=()=>exportXlsx(ex,'Kharcha-'+month);
 }
 
-/* ============ statement check ============ */
-function num(v){if(typeof v==='number')return v;const s=String(v||'').replace(/[,₹\s]/g,'').replace(/(dr|cr)$/i,'');const n=parseFloat(s);return isFinite(n)?n:0}
+/* ---------- statement check ---------- */
+function num(v){if(typeof v==='number')return v;const n=parseFloat(String(v||'').replace(/[,₹\s]/g,'').replace(/(dr|cr)$/i,''));return isFinite(n)?n:0}
 function parseDate(v){
   if(v instanceof Date&&!isNaN(v))return new Date(v.getFullYear(),v.getMonth(),v.getDate(),12);
   if(typeof v==='number'&&v>20000&&v<80000){const d=new Date(Math.round((v-25569)*864e5));return new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate(),12)}
   const s=String(v||'').trim();let m=s.match(/^(\d{1,2})[\/\-. ]([A-Za-z]{3,9}|\d{1,2})[\/\-. ,]*(\d{2,4})/);
-  if(m){let mo=isNaN(m[2])?MN.findIndex(x=>x.toLowerCase()===m[2].slice(0,3).toLowerCase()):+m[2]-1;let yr=+m[3];if(yr<100)yr+=2000;if(mo<0||mo>11)return null;return new Date(yr,mo,+m[1],12)}
+  if(m){const mo=isNaN(m[2])?MN.findIndex(x=>x.toLowerCase()===m[2].slice(0,3).toLowerCase()):+m[2]-1;let yr=+m[3];if(yr<100)yr+=2000;if(mo<0||mo>11)return null;return new Date(yr,mo,+m[1],12)}
   m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3],12);return null}
-const SKIP=new Set(['upi','imps','neft','rtgs','pos','ach','nach','dr','cr','p2a','p2m','ref','txn','payment','paid','to','by','from','transfer','to transfer','by transfer','mob','ib','inb','bil','onl','ecom','atm','wdl','cash','mmt','upi out','upiout','sent','send','pay','collect','request']);
-function extractPayee(n){
-  const s=String(n).replace(/\s+/g,' ').trim();
+const SKIP=new Set(['upi','imps','neft','rtgs','pos','ach','nach','dr','cr','p2a','p2m','ref','txn','payment','paid','to','by','from','transfer','to transfer','by transfer','mob','ib','inb','bil','onl','ecom','atm','wdl','cash','mmt','sent','pay','collect']);
+function extractPayee(n){const s=String(n).replace(/\s+/g,' ').trim();
   for(let p of s.split(/[\/|:]+|\s-\s|-(?=\S)/)){p=p.trim();const l=p.toLowerCase();
-    if(!p||SKIP.has(l)||/^\d+$/.test(p)||p.includes('@')||/^[A-Z]{4}0[A-Z0-9]{6}$/.test(p)||p.replace(/[^a-z]/gi,'').length<3||/^(upi|ref|txn)\s*\d/i.test(p))continue;
-    return p.slice(0,40)}
+    if(!p||SKIP.has(l)||/^\d+$/.test(p)||p.includes('@')||/^[A-Z]{4}0[A-Z0-9]{6}$/.test(p)||p.replace(/[^a-z]/gi,'').length<3||/^(upi|ref|txn)\s*\d/i.test(p))continue;return p.slice(0,40)}
   return s.slice(0,40)}
-function detMode(n){return/upi/i.test(n)?'UPI':/pos|card|ecom/i.test(n)?'Card':/atm|cash/i.test(n)?'Cash':'Bank'}
+const detMode=n=>/upi/i.test(n)?'UPI':/pos|card|ecom/i.test(n)?'Card':/atm|cash/i.test(n)?'Cash':'Bank';
 async function parseStatement(file){
   await loadXLSX();
-  let wb;
-  if(/\.csv$/i.test(file.name)){wb=XLSX.read(await file.text(),{type:'string',raw:true})}else{wb=XLSX.read(new Uint8Array(await file.arrayBuffer()),{type:'array',cellDates:true})}
+  const wb=/\.csv$/i.test(file.name)?XLSX.read(await file.text(),{type:'string',raw:true}):XLSX.read(new Uint8Array(await file.arrayBuffer()),{type:'array',cellDates:true});
   const out=[];
   for(const name of wb.SheetNames){
-    const a=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:''});
-    let h=-1,ci={};
-    for(let i=0;i<Math.min(a.length,80);i++){
-      const r=a[i].map(x=>String(x).toLowerCase().replace(/\s+/g,' ').trim());
+    const a=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:''});let h=-1,ci={};
+    for(let i=0;i<Math.min(a.length,80);i++){const r=a[i].map(x=>String(x).toLowerCase().replace(/\s+/g,' ').trim());
       const di=r.findIndex(x=>/^(txn |tran |transaction |post |posting )?(date|dt)\b/.test(x)&&!/value/.test(x));
       const ni=r.findIndex(x=>/narration|description|particular|remark|details/.test(x));
       const wi=r.findIndex(x=>/withdraw|debit|^dr\b|dr\.? ?amount|amount ?\(?dr/.test(x));
       const ai=r.findIndex(x=>/^amount|txn amount|transaction amount/.test(x)&&!/dr|cr|debit|credit|withdraw|deposit/.test(x));
       const ti=r.findIndex(x=>/^(dr ?\/ ?cr|cr ?\/ ?dr|type|txn type|debit\/credit)$/.test(x));
-      if(di>-1&&ni>-1&&(wi>-1||(ai>-1&&ti>-1))){h=i;ci={d:di,n:ni,w:wi,a:ai,t:ti};break}
-    }
+      if(di>-1&&ni>-1&&(wi>-1||(ai>-1&&ti>-1))){h=i;ci={d:di,n:ni,w:wi,a:ai,t:ti};break}}
     if(h<0)continue;
-    for(let i=h+1;i<a.length;i++){const r=a[i];
-      let amt=0;
-      if(ci.w>-1)amt=num(r[ci.w]);else if(/^d/i.test(String(r[ci.t]).trim()))amt=num(r[ci.a]);
-      if(!amt||amt<=0)continue;const d=parseDate(r[ci.d]);if(!d)continue;
-      const narr=String(r[ci.n]||'').replace(/\s+/g,' ').trim();
-      out.push({d:d.getTime(),amt:Math.round(amt*100)/100,narr,payee:extractPayee(narr),mode:detMode(narr)})}
-  }
+    for(let i=h+1;i<a.length;i++){const r=a[i];const amt=ci.w>-1?num(r[ci.w]):(/^d/i.test(String(r[ci.t]).trim())?num(r[ci.a]):0);
+      if(!amt||amt<=0)continue;const d=parseDate(r[ci.d]);if(!d)continue;const narr=String(r[ci.n]||'').replace(/\s+/g,' ').trim();
+      out.push({d:d.getTime(),amt:Math.round(amt*100)/100,narr,payee:extractPayee(narr),mode:detMode(narr)})}}
   return out;
 }
-function rowKey(r){return r.d+'|'+r.amt+'|'+r.narr.slice(0,60)}
-function reconcile(rows){
-  const used=new Set();
-  return rows.map(r=>{
-    const key=rowKey(r);if(S.seen[key])return{...r,key,st:'seen'};
-    const m=S.expenses.filter(e=>!used.has(e.id)&&e.mode!=='Cash'&&Math.abs(e.amt-r.amt)<0.5&&Math.abs(sod(e.ts)-sod(r.d))<=864e5*1.5)
-      .sort((a,b)=>Math.abs(sod(a.ts)-r.d)-Math.abs(sod(b.ts)-r.d))[0];
-    if(m){used.add(m.id);return{...r,key,st:'matched'}}
-    return{...r,key,st:'missing',cat:suggest(r.payee,'',r.narr)};
-  });
-}
+const rowKey=r=>r.d+'|'+r.amt+'|'+r.narr.slice(0,60);
+function reconcile(rows){const used=new Set();
+  return rows.map(r=>{const k=rowKey(r);if(S.seen[k])return{...r,key:k,st:'seen'};
+    const m=S.expenses.filter(e=>!used.has(e.id)&&e.mode!=='Cash'&&Math.abs(e.amt-r.amt)<0.5&&Math.abs(sod(e.ts)-sod(r.d))<=864e5*1.5).sort((a,b)=>Math.abs(sod(a.ts)-r.d)-Math.abs(sod(b.ts)-r.d))[0];
+    if(m){used.add(m.id);return{...r,key:k,st:'matched'}}
+    return{...r,key:k,st:'missing',cat:suggest(r.payee,r.narr)}})}
 function vCheck(){
   const miss=rec?rec.filter(r=>r.st==='missing'):[];
-  view.innerHTML=`<div class="card"><h4>🧾 Find what you forgot</h4>
-  <ol class="steps"><li>Download your bank statement as <b>Excel or CSV</b> from net banking / bank app.</li><li>Upload it here.</li><li>Kharcha shows only the spends you <b>didn't log</b> – tag them in a tap.</li></ol>
-  <label class="file">📂 Upload statement (.xls / .xlsx / .csv)<input type="file" id="stFile" accept=".xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"></label>
-  <p class="small muted">The file is read on your phone only – nothing is uploaded anywhere.</p></div>
+  view.innerHTML=`<h2>Statement check</h2><div class="card"><p class="muted" style="margin:0">Upload your bank statement (Excel / CSV). Kharcha shows only the spends you haven't logged.</p>
+  <label class="file">Upload statement<input type="file" id="stFile" accept=".xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"></label></div>
   <div id="stOut">${rec?recHtml(rec,miss):''}</div>`;
-  $('#stFile').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;$('#stOut').innerHTML='<p class="muted">Reading statement…</p>';
-    try{const rows=await parseStatement(f);if(!rows.length){$('#stOut').innerHTML='<div class="card">😕 Couldn\'t find transactions in this file. Make sure it\'s the Excel/CSV statement (with Date, Narration and Withdrawal/Debit columns).</div>';return}
-      rec=reconcile(rows);render()}catch(e){$('#stOut').innerHTML='<div class="card">⚠️ '+esc(e.message)+'</div>'}};
+  $('#stFile').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;$('#stOut').innerHTML='<p class="muted">Reading…</p>';
+    try{const rows=await parseStatement(f);if(!rows.length){$('#stOut').innerHTML='<div class="card">No transactions found. Use the Excel/CSV statement with Date, Narration and Withdrawal/Debit columns.</div>';return}rec=reconcile(rows);render()}
+    catch(e){$('#stOut').innerHTML='<div class="card">'+esc(e.message)+'</div>'}};
   bindRec();
 }
-function recHtml(r,miss){
-  const n=s=>r.filter(x=>x.st===s).length;
-  return `<div class="card"><div class="stat"><div><b>${r.length}</b>debits</div><div><b>${n('matched')+n('seen')}</b>already logged</div><div><b style="color:${miss.length?'#d97706':'var(--pri)'}">${miss.length}</b>missing</div></div>
-  ${miss.length?(miss.some(x=>x.cat)?'<button class="btn pri big" id="addSug" style="margin-top:12px">✓ Add all with suggested category</button>':''):'<p style="text-align:center;margin:14px 0 0">🎉 Everything is logged!</p>'}</div>
-  ${miss.length?`<div class="card"><h4>Not logged yet</h4>${miss.map(x=>`<div class="mitem" data-k="${esc(x.key)}">
-    <div class="top"><div><b>${esc(x.payee)}</b><div class="small muted">${dayLabel(x.d)} · ${x.mode}</div></div><b>${inr(x.amt)}</b></div>
-    <div class="small muted" style="word-break:break-all">${esc(x.narr.slice(0,90))}</div>
-    <div class="mini">${S.cats.map(c=>`<button data-c="${c.id}" class="${c.id===x.cat?'on':''}" title="${esc(c.name)}">${c.emoji}</button>`).join('')}</div>
-    <div class="row"><button class="btn pri" data-act="add">Add</button><button class="btn" data-act="skip">Skip (transfer / not expense)</button></div></div>`).join('')}</div>`:''}`;
-}
-function addFromRec(x,c){S.expenses.push({id:uid(),amt:x.amt,cat:c,mode:x.mode,payee:x.payee,note:'',ts:x.d,src:'statement',status:'ok'});learn(x.payee,'',c);S.seen[x.key]=1;x.st='seen'}
-function bindRec(){
-  const out=$('#stOut');if(!out||!rec)return;
-  out.querySelectorAll('.mitem').forEach(el=>{const x=rec.find(r=>r.key===el.dataset.k);
-    bindPick(el.querySelector('.mini'),'data-c',c=>{x.cat=c});
-    el.querySelector('[data-act=add]').onclick=()=>{if(!x.cat){toast('Tap a category icon first');return}addFromRec(x,x.cat);save();render();toast('Added ✓')};
+function recHtml(r,miss){const n=s=>r.filter(x=>x.st===s).length;
+  return `<div class="card"><div class="stat"><div><b>${r.length}</b>debits</div><div><b>${n('matched')+n('seen')}</b>logged</div><div><b style="color:${miss.length?'#d97706':'var(--pri)'}">${miss.length}</b>missing</div></div>
+  ${miss.length?(miss.some(x=>x.cat)?'<button class="btn pri" id="addSug">Add all with suggested category</button>':''):'<p style="text-align:center;margin:12px 0 0">Everything is logged ✓</p>'}</div>
+  ${miss.length?`<div class="card"><h4>Not logged yet</h4>${miss.map(x=>`<div class="mitem" data-k="${esc(x.key)}"><div class="top"><div><b>${esc(x.payee)}</b><div class="small muted">${dayLabel(x.d)} · ${x.mode}</div></div><b>${inr(x.amt)}</b></div>
+    <div class="mini">${S.cats.map(c=>`<button data-c="${c.id}" class="${c.id===x.cat?'on':''}">${c.emoji}</button>`).join('')}</div>
+    <div class="row"><button class="btn pri" data-act="add">Add</button><button class="btn" data-act="skip">Not an expense</button></div></div>`).join('')}</div>`:''}`}
+function addFromRec(x,c){S.expenses.push({id:uid(),amt:x.amt,cat:c,mode:x.mode,payee:x.payee,note:'',ts:x.d,src:'statement'});learn(x.payee,c);S.seen[x.key]=1;x.st='seen'}
+function bindRec(){const out=$('#stOut');if(!out||!rec)return;
+  out.querySelectorAll('.mitem').forEach(el=>{const x=rec.find(r=>r.key===el.dataset.k);bindPick(el.querySelector('.mini'),'data-c',c=>{x.cat=c});
+    el.querySelector('[data-act=add]').onclick=()=>{if(!x.cat){toast('Tap a category first');return}addFromRec(x,x.cat);save();render()};
     el.querySelector('[data-act=skip]').onclick=()=>{S.seen[x.key]='skip';x.st='seen';save();render()}});
-  const a=$('#addSug');if(a)a.onclick=()=>{let k=0;rec.filter(r=>r.st==='missing'&&r.cat).forEach(r=>{addFromRec(r,r.cat);k++});save();render();toast(k+' added ✓')};
-}
+  const a=$('#addSug');if(a)a.onclick=()=>{let k=0;rec.filter(r=>r.st==='missing'&&r.cat).forEach(r=>{addFromRec(r,r.cat);k++});save();render();toast(k+' added ✓')}}
 
-/* ============ more ============ */
+/* ---------- export & backup ---------- */
 function exportXlsx(list,fname){loadXLSX().then(()=>{
-  const rows=[...list].sort((a,b)=>a.ts-b.ts).map(e=>({Date:new Date(e.ts).toLocaleDateString('en-IN'),Time:e.src==='statement'?'':tm(e.ts),Amount:e.amt,Category:cat(e.cat).name,'Paid to':e.payee||'','UPI ID':e.vpa||'',Mode:e.mode,Note:e.note||'',Source:e.src||''}));
+  const rows=[...list].sort((a,b)=>a.ts-b.ts).map(e=>({Date:new Date(e.ts).toLocaleDateString('en-IN'),Time:e.src==='statement'?'':tm(e.ts),Amount:e.amt,Category:cat(e.cat).name,'Paid to':e.payee||'',Mode:e.mode,Note:e.note||'',Bills:(e.att||[]).length||''}));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Expenses');
   const months=[...new Set(list.map(e=>ym(e.ts)))].sort();
-  const sm=S.cats.map(c=>{const o={Category:c.emoji+' '+c.name};months.forEach(m=>o[monthName(m)]=sum(list.filter(e=>e.cat===c.id&&ym(e.ts)===m)));o.Total=sum(list.filter(e=>e.cat===c.id));return o}).filter(o=>o.Total);
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sm),'Summary');if(APP)APP.saveFile(fname+'.xlsx',XLSX.write(wb,{type:'base64',bookType:'xlsx'}),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');else XLSX.writeFile(wb,fname+'.xlsx')}).catch(e=>toast(e.message))}
-function download(name,text){if(APP){APP.saveFile(name,btoa(unescape(encodeURIComponent(text))),'application/json');return}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.download=name;a.click()}
-function vMore(){
-  view.innerHTML=`${APP?`<div class="card"><h4>⚡ Instant capture</h4><p class="small muted" style="margin-top:0">Reads the “Sent ₹…” screen in Samsung Wallet / GPay / PhonePe / Paytm / BHIM and pops up a card to tag the payment. Works only inside those apps.</p>
-  <p style="margin:6px 0"><b>${APP.hasAccessibility&&APP.hasAccessibility()?'✅ ON':'❌ OFF'}</b></p>
-  ${APP.hasAccessibility&&APP.hasAccessibility()?'':'<button class="btn pri big" id="accB">Turn on instant capture</button><p class="small muted" style="margin:6px 0 0">Settings → Accessibility → Installed apps → <b>Kharcha</b> → On. Greyed out? App info → ⋮ → Allow restricted settings.</p><button class="btn ghost" id="accInfo">App info</button>'}
-  <button class="btn ghost" id="diagB">🩺 Check capture log</button></div>`:`<div class="card"><h4>🤖 Android app (auto-capture)</h4><p class="small muted" style="margin-top:0">Install the Kharcha Android app to log payments automatically from GPay notifications – no double scanning.</p><a class="btn pri big" href="${APK_URL}" style="text-decoration:none">⬇️ Download Kharcha.apk</a></div>`}
-  <div class="card"><h4>📲 Install on your phone</h4><p class="small muted" style="margin:0">In Chrome tap <b>⋮ → Add to Home screen / Install app</b>. Then <b>long-press the Kharcha icon</b> for a direct “Pay” shortcut.</p></div>
-  <div class="card"><h4>💳 Payment app</h4><p class="small muted" style="margin-top:0">The app Kharcha opens when you tap Pay.</p><div class="chips" id="payApp">${PAY_APPS.map(([k,n])=>`<button data-p="${k}" class="${k===payPkg()?'on':''}">${n}</button>`).join('')}</div><button class="btn ghost" id="tLaunch">🔧 Test opening the app</button></div>
-  <div class="card"><h4>🏷️ Categories</h4>${S.cats.map(c=>`<div class="catrow"><div class="ico" style="background:${c.color}22">${c.emoji}</div><span>${esc(c.name)}</span>${c.id==='other'?'':`<button data-del="${c.id}">Remove</button>`}</div>`).join('')}
-  <div class="row"><input id="nEmoji" placeholder="🙂" style="width:64px;flex:none;text-align:center" maxlength="4"><input id="nName" placeholder="New category name"></div><button class="btn pri big" id="nAdd" style="margin-top:6px">Add category</button></div>
-  <div class="card"><h4>💾 Your data</h4><p class="small muted" style="margin-top:0">${okEx().length} expenses saved on this phone only. Take a backup now and then.</p>
-  <button class="btn ghost" id="xAll">⬇️ Export everything to Excel</button>
-  <button class="btn ghost" id="bk">💾 Backup (file)</button>
-  <label class="btn ghost">♻️ Restore from backup<input type="file" accept=".json,application/json" id="rs" hidden></label>
-  <button class="btn ghost" id="wipe" style="color:var(--red)">🗑️ Erase all data</button></div>
-  <p class="small muted" style="text-align:center">Kharcha web v11 · works offline · no login</p>`;
-  bindPick($('#payApp'),'data-p',k=>{S.payApp=k;S.launch=null;save();toast(payName()+' selected')});
-  $('#tLaunch').onclick=testLaunchSheet;
-  if(APP){const db=$('#diagB');if(db)db.onclick=diagSheet;const ab=$('#accB');if(ab)ab.onclick=()=>APP.openAccessibilitySettings();const ai=$('#accInfo');if(ai)ai.onclick=()=>APP.openAppInfo()}
-  view.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const c=cat(b.dataset.del);const n=S.expenses.filter(e=>e.cat===c.id).length;if(!confirm(`Remove “${c.name}”?`+(n?` ${n} expenses will move to Other.`:'')))return;S.expenses.forEach(e=>{if(e.cat===c.id)e.cat='other'});S.cats=S.cats.filter(x=>x.id!==c.id);Object.keys(S.rules).forEach(k=>{if(S.rules[k]===c.id)delete S.rules[k]});save();render()});
-  $('#nAdd').onclick=()=>{const nm=$('#nName').value.trim();if(!nm)return toast('Type a name');const col=['#0ea5e9','#f97316','#22c55e','#a855f7','#ec4899','#eab308','#14b8a6'][S.cats.length%7];S.cats.splice(S.cats.length-1,0,{id:'c'+uid(),name:nm,emoji:$('#nEmoji').value.trim()||'🏷️',color:col});save();render();toast('Category added')};
-  $('#xAll').onclick=()=>okEx().length?exportXlsx(okEx(),'Kharcha-all'):toast('Nothing to export yet');
-  $('#bk').onclick=()=>download('kharcha-backup-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(S));
-  $('#rs').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d.expenses))throw 0;if(!confirm(`Restore ${d.expenses.length} expenses? This replaces current data.`))return;S=d;S.cats=S.cats||DEF_CATS;S.rules=S.rules||{};S.seen=S.seen||{};save();render();toast('Restored ✓')}catch(e){toast('Not a valid Kharcha backup')}};
-  $('#wipe').onclick=()=>{if(confirm('Erase ALL expenses? Take a backup first!')&&confirm('Really erase everything?')){localStorage.removeItem(LS);S=load();rec=null;render();toast('Erased')}};
+  const sm=S.cats.map(c=>{const o={Category:c.name};months.forEach(m=>o[monthName(m)]=sum(list.filter(e=>e.cat===c.id&&ym(e.ts)===m)));o.Total=sum(list.filter(e=>e.cat===c.id));return o}).filter(o=>o.Total);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sm),'Summary');
+  if(APP)APP.saveFile(fname+'.xlsx',XLSX.write(wb,{type:'base64',bookType:'xlsx'}),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');else XLSX.writeFile(wb,fname+'.xlsx')}).catch(e=>toast(e.message))}
+async function makeBackup(){
+  await loadZip();const z=new JSZip();
+  z.file('kharcha.json',JSON.stringify({...S,backupAt:Date.now(),app:VERSION}));
+  const files=await fall();const meta=[];
+  for(const f of files){z.file('files/'+f.id,f.data||await toAB(f.blob));meta.push({id:f.id,name:f.name,type:f.type,ts:f.ts})}
+  z.file('files.json',JSON.stringify(meta));
+  return{name:'Kharcha-backup-'+new Date().toISOString().slice(0,10)+'.zip',b64:await z.generateAsync({type:'base64',compression:'DEFLATE'})};
+}
+async function backupTo(where){
+  toast('Preparing backup…');
+  try{const b=await makeBackup();
+    if(APP&&where==='pool')APP.shareFile(b.name,b.b64,'application/zip',POOLDRIVE);
+    else if(APP&&where==='share')APP.shareFile(b.name,b.b64,'application/zip','');
+    else if(APP)APP.saveFile(b.name,b.b64,'application/zip');
+    else{const a=document.createElement('a');a.href='data:application/zip;base64,'+b.b64;a.download=b.name;a.click()}
+    S.lastBackup=Date.now();save();if(tab==='more')render();
+  }catch(e){toast('Backup failed: '+e.message)}
+}
+async function restore(file){
+  try{
+    let data,files=[];
+    if(/\.json$/i.test(file.name)){data=JSON.parse(await file.text())}
+    else{await loadZip();const z=await JSZip.loadAsync(file);data=JSON.parse(await z.file('kharcha.json').async('string'));
+      const meta=z.file('files.json')?JSON.parse(await z.file('files.json').async('string')):[];
+      for(const m of meta){const f=z.file('files/'+m.id);if(f)files.push({...m,data:await f.async('arraybuffer')})}}
+    if(!Array.isArray(data.expenses))throw 0;
+    if(!confirm(`Restore ${data.expenses.length} expenses${files.length?' and '+files.length+' bills':''}? This replaces what is on this phone.`))return;
+    for(const f of files)await fput(f);
+    S={v:2,expenses:data.expenses.filter(e=>e.status!=='pending'),cats:data.cats||DEF_CATS.slice(),rules:data.rules||{},seen:data.seen||{},lastBackup:data.lastBackup};
+    save();render();toast('Restored ✓');
+  }catch(e){toast('Not a valid Kharcha backup')}
 }
 
-/* ============ capture from notification / share (one scan only) ============ */
-function parseNotif(t){
-  t=String(t||'').replace(/ /g,' ');
-  let amt=0,m=t.match(/(?:₹|rs\.?|inr)\s*([\d,]+(?:\.\d{1,2})?)/i);
-  if(m)amt=parseAmt(m[1]);
-  if(!amt){const k=t.match(/(?:debited|paid|sent|spent|transferred)\s+(?:by|for|of|with)?\s*(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d{1,2})?)/i);if(k)amt=parseAmt(k[1])}
-  if(!amt){const lines=t.split(/\n/).map(s=>s.trim());for(const l of lines){const k=l.match(/^[₹%zZxX¥]?\s?([\d,]{1,9}(?:\.\d{1,2})?)$/);if(k&&parseAmt(k[1])>0){amt=parseAmt(k[1]);break}}}
-  let payee='';
-  const p=t.match(/(?:paid to|sent to|payment to|to)\s*[:\n]?\s*([A-Za-z][A-Za-z0-9 .&'@-]{1,40}?)(?=\s+(?:on|via|using|from|ref|refno|ref\.?no|re-?f\.?\s*no|upi|successfully|is|was|for|with|a\/c|if|not|avl|bal)\b|\s+re-|\s+\d{6,}|[.,!?\n]|$)/i);
-  if(p)payee=p[1].trim();
-  return{amt,payee};
+/* ---------- settings ---------- */
+function ago(t){if(!t)return'never';const d=Math.floor((Date.now()-t)/864e5);return d<1?'today':d===1?'yesterday':d+' days ago'}
+function vMore(){
+  const acc=APP&&APP.hasAccessibility&&APP.hasAccessibility();
+  const pool=APP&&APP.hasApp&&APP.hasApp(POOLDRIVE);
+  view.innerHTML=`<h2>Settings</h2>
+  ${APP?`<div class="card"><h4>Instant capture</h4><p class="small muted" style="margin:0 0 6px">After you pay in Samsung Wallet, GPay, PhonePe, Paytm or BHIM, a card pops up to tag the payment.</p>
+    <div class="srow"><span>Status</span><span class="status ${acc?'ok':'bad'}">${acc?'ON':'OFF'}</span></div>
+    ${acc?'':'<button class="btn pri" id="accB">Turn on</button><p class="small muted" style="margin:8px 0 0">Accessibility → Installed apps → Kharcha → On. Greyed out? <a href="#" id="accInfo" style="color:var(--pri)">App info</a> → ⋮ → Allow restricted settings.</p>'}
+    <button class="srow" id="diagB"><span>Capture log</span><span class="chev">›</span></button></div>`:''}
+  <div class="card"><h4>Backup</h4><p class="small muted" style="margin:0 0 4px">All expenses and attached bills in one file. Last backup: <b>${ago(S.lastBackup)}</b></p>
+    ${APP?(pool?'<button class="btn pri" id="bkPool">Back up to PoolDrive</button>':'<button class="btn pri" id="bkShare">Back up (choose app)</button><p class="small muted" style="margin:6px 0 0">Install the PoolDrive app to back up there in one tap.</p>'):''}
+    <button class="btn" id="bkSave">Save backup file${APP?' to phone':''}</button>
+    <label class="btn" style="cursor:pointer">Restore from backup<input type="file" accept=".zip,.json,application/zip,application/json" id="rs" hidden></label></div>
+  <div class="card"><h4>Categories</h4>${S.cats.map(c=>`<div class="catrow"><div class="ico">${c.emoji}</div><span>${esc(c.name)}</span>${c.id==='other'?'':`<button data-del="${c.id}">Remove</button>`}</div>`).join('')}
+    <div class="row" style="margin-top:8px"><input id="nEmoji" placeholder="🙂" style="width:64px;flex:none;text-align:center" maxlength="4"><input id="nName" placeholder="New category"></div><button class="btn" id="nAdd">Add category</button></div>
+  <div class="card"><h4>Data</h4><button class="srow" id="xAll"><span>Export everything to Excel</span><span class="chev">›</span></button><button class="srow" id="wipe"><span style="color:var(--red)">Erase all data</span><span class="chev">›</span></button></div>
+  <div class="foot">Kharcha ${VERSION} · your data stays on this phone</div>`;
+  if(APP){const ab=$('#accB');if(ab)ab.onclick=()=>APP.openAccessibilitySettings();const ai=$('#accInfo');if(ai)ai.onclick=e=>{e.preventDefault();APP.openAppInfo()};$('#diagB').onclick=diagSheet}
+  const bp=$('#bkPool');if(bp)bp.onclick=()=>backupTo('pool');
+  const bs=$('#bkShare');if(bs)bs.onclick=()=>backupTo('share');
+  $('#bkSave').onclick=()=>backupTo('save');
+  $('#rs').onchange=ev=>{const f=ev.target.files[0];if(f)restore(f)};
+  view.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const c=cat(b.dataset.del);const n=S.expenses.filter(e=>e.cat===c.id).length;if(!confirm(`Remove “${c.name}”?`+(n?` ${n} expenses move to Other.`:'')))return;S.expenses.forEach(e=>{if(e.cat===c.id)e.cat='other'});S.cats=S.cats.filter(x=>x.id!==c.id);Object.keys(S.rules).forEach(k=>{if(S.rules[k]===c.id)delete S.rules[k]});save();render()});
+  $('#nAdd').onclick=()=>{const nm=$('#nName').value.trim();if(!nm)return toast('Type a name');S.cats.splice(S.cats.length-1,0,{id:'c'+uid(),name:nm,emoji:$('#nEmoji').value.trim()||'🏷️'});save();render();toast('Category added')};
+  $('#xAll').onclick=()=>S.expenses.length?exportXlsx(S.expenses,'Kharcha-all'):toast('Nothing to export yet');
+  $('#wipe').onclick=async()=>{if(confirm('Erase ALL expenses and bills? Take a backup first!')&&confirm('Really erase everything?')){localStorage.removeItem(LS);for(const f of await fall())await fdel(f.id);S=load();rec=null;render();toast('Erased')}};
 }
-function logFromText(t,src,ts){
-  const{amt,payee}=parseNotif(t);
-  if(!amt){addSheet({payee,cat:suggest(payee),mode:'UPI',ts:ts||Date.now(),src});toast('Type the amount');return}
-  const dup=S.expenses.find(e=>e.status==='pending'&&Math.abs(e.amt-amt)<0.5&&Math.abs((ts||Date.now())-e.ts)<6*60*1000);
-  if(dup){toast('Already logged – opening it');dup.status==='pending'?confirmSheet(dup):addSheet(dup);return}
-  addSheet({amt,payee,cat:suggest(payee),mode:'UPI',ts:ts||Date.now(),src});
-}
-const PKGN={'com.google.android.apps.nbu.paisa.user':'Google Pay','com.phonepe.app':'PhonePe','net.one97.paytm':'Paytm','com.samsung.android.spay':'Samsung Wallet','in.org.npci.upiapp':'BHIM','com.google.android.apps.messaging':'Messages (SMS)','com.samsung.android.messaging':'Samsung Messages (SMS)'};
 function diagSheet(){
   let log=[];try{log=JSON.parse(APP.getLog())}catch(e){}
-  openSheet(`<h3>🩺 Capture log</h3>
-  <div class="card" style="margin:6px 0"><div>⚡ Instant capture: <b>${APP.hasAccessibility&&APP.hasAccessibility()?'✅ ON':'❌ OFF'}</b></div></div>
-  <h4 style="margin:14px 0 4px">Payment screens read (latest first)</h4>
-  ${log.length?log.map(l=>`<div class="mitem"><div class="top"><b>${esc(PKGN[l.pkg]||l.pkg)}</b><span class="small" style="color:${l.why==='CAPTURED'?'var(--pri)':'#b45309'};font-weight:700">${esc(l.why)}</span></div><div class="small muted">${dayLabel(l.ts)} ${tm(l.ts)}</div><div class="small" style="word-break:break-word">${esc(l.t)}</div></div>`).join(''):`<p class="small muted">Nothing seen yet. Make a ₹1 payment, then open this again.<br>If it stays empty, check that instant capture is ON.</p>`}
-  <button class="btn ghost" id="dRef">↻ Refresh</button>`,sh=>{
-    sh.querySelector('#dRef').onclick=diagSheet;});
-}
-let Q=[];
-function nextQueued(){if(!Q.length||!$('#ov').classList.contains('hidden'))return;const it=Q.shift();logFromText(it.t,'auto',it.ts);if(Q.length)setTimeout(()=>toast(Q.length+' more payment'+(Q.length>1?'s':'')+' to tag'),400)}
-function importDone(it){
-  const c=S.cats.some(x=>x.id===it.cat)?it.cat:'other';
-  if(S.expenses.some(e=>e.src==='auto'&&e.ts===it.ts))return; // same capture imported twice
-  const dup=S.expenses.find(e=>e.status==='pending'&&Math.abs(e.amt-it.amt)<0.5&&Math.abs(it.ts-e.ts)<6*60*1000); // only merge with an unconfirmed 💸 Pay entry
-  if(dup){dup.cat=c;if(it.note)dup.note=it.note;if(!dup.payee)dup.payee=it.payee;dup.status='ok';if(S.pendingId===dup.id)S.pendingId=null}
-  else S.expenses.push({id:uid(),amt:it.amt,cat:c,payee:it.payee||'',note:it.note||'',mode:'UPI',ts:it.ts,src:'auto',status:'ok'});
-  learn(it.payee,'',c);
-}
-window.kharchaPoll=function(){if(!APP)return;try{const a=JSON.parse(APP.takePending()||'[]');let n=0;a.forEach(it=>{if(it.done){importDone(it);n++}else Q.push(it)});if(n){save();render();toast(n+' payment'+(n>1?'s':'')+' added from pop-up ✓')}nextQueued()}catch(e){}};
-async function ocrBlob(blob){openSheet('<h3>Reading receipt…</h3><p class="muted">Finding amount and name (first time takes ~10 sec)</p>');
-  try{await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');const r=await Tesseract.recognize(blob,'eng');closeSheet();logFromText(r.data.text,'share')}
-  catch(e){closeSheet();toast('Could not read the screenshot');addSheet({src:'share'})}}
-window.kharchaImage=function(d){fetch(d).then(r=>r.blob()).then(ocrBlob)};
-async function handleShare(){
-  let d={},blob=null;
-  try{const c=await caches.open('kharcha-share');const r=await c.match('./shared-text');if(r)d=await r.json();const f=await c.match('./shared-file');if(f)blob=await f.blob();await c.delete('./shared-text');await c.delete('./shared-file')}catch(e){}
-  const txt=[d.title,d.text].filter(Boolean).join('\n');
-  if(parseNotif(txt).amt)return logFromText(txt,'share');
-  if(blob)return ocrBlob(blob);
-  if(txt)logFromText(txt,'share');else addSheet({src:'share'});
+  log=log.filter(l=>/screen/i.test(l.why||''));
+  openSheet(`<h3>Capture log</h3><p class="small muted" style="margin-top:0">Payment screens Kharcha has read (latest first).</p>
+  ${log.length?log.map(l=>`<div class="mitem"><div class="top"><b>${esc(String(l.t).split('\n')[0].replace(/^Screen:\s*/,''))}</b><span class="small muted">${dayLabel(l.ts)} ${tm(l.ts)}</span></div><div class="small muted" style="word-break:break-word">${esc((String(l.t).split('\n')[1]||'').replace(/^RAW:\s*/,''))}</div></div>`).join(''):'<p class="muted">Nothing yet. Make a payment, then check again.</p>'}`);
 }
 
-/* ============ start ============ */
+/* ---------- start ---------- */
 render();
-const qa=new URLSearchParams(location.search).get('a');
-if(new URLSearchParams(location.search).get('launchfail')){toast('Could not open the app that way – try More → 🔧 Test');if(S.pendingId)setTimeout(()=>confirmSheet(),300)}
-else if(qa==='log')logFromText(new URLSearchParams(location.search).get('t')||'','auto');
-else if(qa==='share')handleShare();
-else if(qa==='scan'||qa==='pay')payForm();else if(qa==='add')addSheet();else if(S.pendingId)confirmSheet();
+if(new URLSearchParams(location.search).get('a')==='add')addSheet();
 if(location.search)history.replaceState(null,'',location.pathname);
-if(APP){syncNative();setTimeout(()=>window.kharchaPoll(),600);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(()=>{window.kharchaPoll();render()},400)})}
-if(!APP&&'serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if(APP){syncNative();setTimeout(()=>window.kharchaPoll(),500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(()=>{window.kharchaPoll();render()},300)})}
+else if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
 </html>

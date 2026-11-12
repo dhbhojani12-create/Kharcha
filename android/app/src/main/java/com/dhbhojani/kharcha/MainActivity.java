@@ -2,12 +2,9 @@ package com.dhbhojani.kharcha;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.ComponentName;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
 import android.net.NetworkCapabilities;
 import android.net.Uri;
@@ -15,7 +12,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.provider.Settings;
-import android.service.notification.NotificationListenerService;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
@@ -27,8 +23,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
 
 public class MainActivity extends Activity {
@@ -36,8 +32,8 @@ public class MainActivity extends Activity {
 
     WebView web;
     ValueCallback<Uri[]> fileCb;
+    Uri cameraUri;
     PermissionRequest pendingPerm;
-    String pendingImage;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -56,28 +52,14 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 Uri u = r.getUrl();
-                String sc = u.getScheme();
                 String host = u.getHost();
-                if (("https".equals(sc) || "http".equals(sc)) && host != null && host.endsWith("github.io")) return false;
+                if (host != null && host.endsWith("github.io")) return false;
                 try {
-                    Intent i = "intent".equals(sc)
-                            ? Intent.parseUri(u.toString(), Intent.URI_INTENT_SCHEME)
-                            : new Intent(Intent.ACTION_VIEW, u);
-                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(i);
+                    startActivity(new Intent(Intent.ACTION_VIEW, u).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
                 } catch (Exception e) {
                     toast("No app found to open this");
                 }
                 return true;
-            }
-
-            @Override
-            public void onPageFinished(WebView v, String url) {
-                if (pendingImage != null) {
-                    String js = "setTimeout(function(){window.kharchaImage&&kharchaImage('" + pendingImage + "')},300)";
-                    pendingImage = null;
-                    v.evaluateJavascript(js, null);
-                }
             }
         });
 
@@ -99,9 +81,21 @@ public class MainActivity extends Activity {
                 if (fileCb != null) fileCb.onReceiveValue(null);
                 fileCb = cb;
                 try {
-                    startActivityForResult(p.createIntent(), 2);
+                    if (p.isCaptureEnabled()) {
+                        File dir = new File(getCacheDir(), "shared");
+                        dir.mkdirs();
+                        File f = new File(dir, "photo_" + System.currentTimeMillis() + ".jpg");
+                        cameraUri = FilesProvider.uriFor(f);
+                        Intent i = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                        i.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
+                        i.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        startActivityForResult(i, 4);
+                    } else {
+                        startActivityForResult(p.createIntent(), 2);
+                    }
                 } catch (Exception e) {
                     fileCb = null;
+                    toast("Could not open picker");
                     return false;
                 }
                 return true;
@@ -112,52 +106,22 @@ public class MainActivity extends Activity {
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 3);
         }
-        handle(getIntent(), true);
-    }
-
-    @Override
-    protected void onNewIntent(Intent i) {
-        super.onNewIntent(i);
-        setIntent(i);
-        handle(i, false);
+        web.loadUrl(HOME);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         if (web != null) web.evaluateJavascript("window.kharchaPoll&&kharchaPoll()", null);
-
     }
 
-    void handle(Intent i, boolean first) {
-        String url = HOME;
-        if (i != null && Intent.ACTION_SEND.equals(i.getAction())) {
-            String type = i.getType() == null ? "" : i.getType();
-            if (type.startsWith("image/")) {
-                Uri img = i.getParcelableExtra(Intent.EXTRA_STREAM);
-                pendingImage = readDataUrl(img);
-            } else {
-                String t = i.getStringExtra(Intent.EXTRA_TEXT);
-                if (t != null) url = HOME + "?a=log&t=" + Uri.encode(t);
-            }
-        }
-        if (first || !url.equals(HOME) || pendingImage != null) web.loadUrl(url);
-    }
-
-    String readDataUrl(Uri u) {
-        if (u == null) return null;
-        try (InputStream in = getContentResolver().openInputStream(u)) {
-            Bitmap bm = BitmapFactory.decodeStream(in);
-            if (bm == null) return null;
-            int w = bm.getWidth(), h = bm.getHeight();
-            if (w > 1080) {
-                bm = Bitmap.createScaledBitmap(bm, 1080, (int) ((long) h * 1080 / w), true);
-            }
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            bm.compress(Bitmap.CompressFormat.JPEG, 85, out);
-            return "data:image/jpeg;base64," + Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+    boolean online() {
+        try {
+            ConnectivityManager cm = getSystemService(ConnectivityManager.class);
+            NetworkCapabilities nc = cm.getNetworkCapabilities(cm.getActiveNetwork());
+            return nc != null && nc.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
         } catch (Exception e) {
-            return null;
+            return true;
         }
     }
 
@@ -172,8 +136,13 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onActivityResult(int code, int result, Intent data) {
-        if (code == 2 && fileCb != null) {
+        if (fileCb != null && code == 2) {
             fileCb.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result, data));
+            fileCb = null;
+            return;
+        }
+        if (fileCb != null && code == 4) {
+            fileCb.onReceiveValue(result == RESULT_OK && cameraUri != null ? new Uri[]{cameraUri} : null);
             fileCb = null;
             return;
         }
@@ -187,55 +156,43 @@ public class MainActivity extends Activity {
                 v -> { if ("0".equals(v)) finish(); });
     }
 
-    boolean online() {
-        try {
-            ConnectivityManager cm = getSystemService(ConnectivityManager.class);
-            NetworkCapabilities nc = cm.getNetworkCapabilities(cm.getActiveNetwork());
-            return nc != null && nc.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
-        } catch (Exception e) {
-            return true;
-        }
-    }
-
     void toast(String m) {
         runOnUiThread(() -> Toast.makeText(this, m, Toast.LENGTH_SHORT).show());
     }
 
+    File writeCache(String name, String b64) throws Exception {
+        File dir = new File(getCacheDir(), "shared");
+        dir.mkdirs();
+        String safe = name.replaceAll("[^A-Za-z0-9._ -]", "_");
+        File f = new File(dir, safe);
+        try (FileOutputStream o = new FileOutputStream(f)) {
+            o.write(Base64.decode(b64, Base64.DEFAULT));
+        }
+        return f;
+    }
+
     class Bridge {
         @JavascriptInterface
-        public boolean openApp(String pkg) {
-            Intent i = getPackageManager().getLaunchIntentForPackage(pkg);
-            if (i == null) return false;
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            runOnUiThread(() -> startActivity(i));
-            return true;
+        public String version() {
+            return "6";
         }
 
         @JavascriptInterface
-        public boolean openUpi(String url, String pkg) {
-            try {
-                Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                if (pkg != null && !pkg.isEmpty()) i.setPackage(pkg);
-                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                runOnUiThread(() -> {
-                    try { startActivity(i); } catch (Exception e) { toast("App not found"); }
-                });
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
-        }
-
-        @JavascriptInterface
-        public boolean hasNotifAccess() {
-            String f = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
+        public boolean hasAccessibility() {
+            String f = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
             return f != null && f.contains(getPackageName());
         }
 
         @JavascriptInterface
-        public void openNotifSettings() {
-            Intent i = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        public void openAccessibilitySettings() {
+            Intent i = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            runOnUiThread(() -> startActivity(i));
+        }
+
+        @JavascriptInterface
+        public void openAppInfo() {
+            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             runOnUiThread(() -> startActivity(i));
         }
 
@@ -245,15 +202,31 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public void setReadSms(boolean on) {
-            getSharedPreferences("k", MODE_PRIVATE).edit().putBoolean("sms", on).apply();
+        public String getLog() {
+            return getSharedPreferences("k", MODE_PRIVATE).getString("log", "[]");
         }
 
         @JavascriptInterface
-        public boolean getReadSms() {
-            return getSharedPreferences("k", MODE_PRIVATE).getBoolean("sms", false);
+        public void setCats(String json) {
+            getSharedPreferences("k", MODE_PRIVATE).edit().putString("cats", json).apply();
         }
 
+        @JavascriptInterface
+        public void setRules(String json) {
+            getSharedPreferences("k", MODE_PRIVATE).edit().putString("rules", json).apply();
+        }
+
+        @JavascriptInterface
+        public boolean hasApp(String pkg) {
+            try {
+                getPackageManager().getPackageInfo(pkg, 0);
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        /** Save to the phone's Downloads folder. */
         @JavascriptInterface
         public boolean saveFile(String name, String b64, String mime) {
             try {
@@ -273,69 +246,45 @@ public class MainActivity extends Activity {
             }
         }
 
+        /** Send a file to another app (e.g. PoolDrive). pkg empty = let the user choose. */
         @JavascriptInterface
-        public String version() {
-            return "5";
+        public boolean shareFile(String name, String b64, String mime, String pkg) {
+            try {
+                File f = writeCache(name, b64);
+                Intent i = new Intent(Intent.ACTION_SEND);
+                i.setType(mime);
+                i.putExtra(Intent.EXTRA_STREAM, FilesProvider.uriFor(f));
+                i.putExtra(Intent.EXTRA_SUBJECT, name);
+                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                Intent go = i;
+                if (pkg != null && !pkg.isEmpty() && hasApp(pkg)) i.setPackage(pkg);
+                else go = Intent.createChooser(i, "Send backup to").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                final Intent run = go;
+                runOnUiThread(() -> {
+                    try { startActivity(run); } catch (Exception e) { toast("Could not open the app"); }
+                });
+                return true;
+            } catch (Exception e) {
+                toast("Could not prepare file");
+                return false;
+            }
         }
 
+        /** Open a document (PDF etc.) in the phone's viewer. */
         @JavascriptInterface
-        public boolean hasAccessibility() {
-            String f = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-            return f != null && f.contains(getPackageName());
-        }
-
-        @JavascriptInterface
-        public void openAccessibilitySettings() {
-            Intent i = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            runOnUiThread(() -> startActivity(i));
-        }
-
-        @JavascriptInterface
-        public boolean canOverlay() {
-            return Settings.canDrawOverlays(MainActivity.this);
-        }
-
-        @JavascriptInterface
-        public void openOverlaySettings() {
-            Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            runOnUiThread(() -> startActivity(i));
-        }
-
-        @JavascriptInterface
-        public void setCats(String json) {
-            getSharedPreferences("k", MODE_PRIVATE).edit().putString("cats", json).apply();
-        }
-
-        @JavascriptInterface
-        public void setRules(String json) {
-            getSharedPreferences("k", MODE_PRIVATE).edit().putString("rules", json).apply();
-        }
-
-        @JavascriptInterface
-        public void testPopup() {
-            runOnUiThread(() -> {
-                if (!Settings.canDrawOverlays(MainActivity.this)) { toast("Turn on 'Appear on top' first"); return; }
-                Popup.show(MainActivity.this, "Test: You paid ₹10 to Test Shop", -1, null, android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
-            });
-        }
-
-        @JavascriptInterface
-        public String getLog() {
-            return getSharedPreferences("k", MODE_PRIVATE).getString("log", "[]");
-        }
-
-        @JavascriptInterface
-        public long listenerConnectedAt() {
-            return getSharedPreferences("k", MODE_PRIVATE).getLong("conn", 0);
-        }
-
-        @JavascriptInterface
-        public void openAppInfo() {
-            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            runOnUiThread(() -> startActivity(i));
+        public boolean openFile(String name, String b64, String mime) {
+            try {
+                File f = writeCache(name, b64);
+                Intent i = new Intent(Intent.ACTION_VIEW);
+                i.setDataAndType(FilesProvider.uriFor(f), mime);
+                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                runOnUiThread(() -> {
+                    try { startActivity(i); } catch (Exception e) { toast("No app to open this file"); }
+                });
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
         }
     }
 }

@@ -6,8 +6,8 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f4f6f8",
-  "theme_color": "#0f766e",
+  "background_color": "#f6f7f9",
+  "theme_color": "#f6f7f9",
   "icons": [
     {
       "src": "icon-192.png",
@@ -24,19 +24,8 @@
   ],
   "shortcuts": [
     {
-      "name": "Pay",
-      "short_name": "Pay",
-      "url": "./?a=pay",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Quick Add",
-      "short_name": "Quick Add",
+      "name": "Add expense",
+      "short_name": "Add",
       "url": "./?a=add",
       "icons": [
         {
@@ -45,23 +34,5 @@
         }
       ]
     }
-  ],
-  "share_target": {
-    "action": "./?a=share",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url",
-      "files": [
-        {
-          "name": "files",
-          "accept": [
-            "image/*"
-          ]
-        }
-      ]
-    }
-  }
+  ]
 }
