@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>On the way · Station Alarm</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#0f172a;--mut:#475569;--line:#e2e8f0;--acc:#facc15}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:520px;margin:0 auto;padding:20px 18px 40px}
+.note{background:#e2e8f0;border-radius:12px;padding:10px 14px;font-size:13px;color:#334155}
+h1{margin:16px 0 2px;font-size:28px;letter-spacing:-.5px;line-height:1.15}
+.sub{color:var(--mut);font-size:13.5px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.pill{padding:6px 10px;border-radius:10px;font-size:13px;font-weight:700;background:#e2e8f0}
+.pill.acc{background:var(--acc)}
+.card{background:var(--card);border-radius:20px;padding:12px 14px;margin-top:12px}
+.route{position:relative}
+.route:before{content:"";position:absolute;left:11px;top:22px;bottom:22px;width:2px;background:var(--line)}
+.st{position:relative;display:flex;align-items:center;gap:12px;min-height:38px}
+.st i{flex:0 0 24px;display:flex;justify-content:center}
+.st i:before{content:"";width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid #64748b}
+.st.past{color:#64748b}.st.past i:before{background:#64748b}
+.st.dest{font-weight:800}.st.dest i:before{width:14px;height:14px;background:var(--ink);border-color:var(--ink)}
+.st.me i:before{width:18px;height:18px;background:var(--acc);border:3px solid var(--ink)}
+.st .t{margin-left:auto;font-size:12.5px;color:var(--mut)}
+.row{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}.row:first-child{border-top:0}
+.big{font-size:30px;font-weight:800}
+.center{text-align:center}
+</style>
+</head>
+<body>
+<main id="m"><p class="center sub" style="margin-top:40px">Loading the trip…</p></main>
+<script>
+const topic=(location.hash||'').slice(1).replace(/[^A-Za-z0-9_-]/g,'');
+const m=document.getElementById('m');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtMin=x=>{x=Math.round(x);return x<60?x+' min':Math.floor(x/60)+' h '+(x%60)+' min'};
+const clock=ms=>new Date(ms).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'});
+const hhmm=t=>{if(t==null||t<0)return'';const mm=t%1440,h=Math.floor(mm/60);return((h+11)%12+1)+':'+String(mm%60).padStart(2,'0')+(h<12?' am':' pm')};
+function agoText(ms){const a=Math.round((Date.now()-ms)/60000);return a<1?'just now':a<60?a+' min ago':Math.floor(a/60)+' h '+(a%60)+' min ago'}
+function draw(x){
+  const late=x.delay==null?'':x.delay>5?'About '+fmtMin(x.delay)+' late':x.delay<-5?'Running early':'On time';
+  const arr=x.eta!=null&&!x.arrived?clock(x.ts+x.eta*60000):null;
+  let route='';
+  if(x.route&&x.route.length){let me=false;
+    for(const [n,c,t] of x.route){
+      if(!me&&!x.arrived&&c>x.progress+50){me=true;route+=`<div class="st me"><i></i><span><b>${esc(x.near||'On the way')}</b><br><small class="sub">seen ${agoText(x.ts)}</small></span></div>`}
+      route+=`<div class="st ${n===x.dest?'dest':(c<=x.progress?'past':'')}"><i></i><span>${esc(n)}</span><span class="t">${hhmm(t)}</span></div>`}}
+  const stale=Date.now()-x.ts>10*60000;
+  m.innerHTML=`<div class="note">Shared from Station Alarm. Updates every couple of minutes while the trip is on.</div>
+  <h1>${x.arrived?'Reached '+esc(x.dest):'On the way to '+esc(x.dest)}</h1>
+  <div class="sub">${esc([x.train&&('Train '+x.train),x.trainName].filter(Boolean).join(' · '))}</div>
+  <div class="chips">${late?`<span class="pill acc">${late}</span>`:''}${arr?`<span class="pill">Arrives around ${arr}</span>`:''}${x.arrived?`<span class="pill acc">Reached ${clock(x.ts)}</span>`:''}</div>
+  ${!x.arrived?`<div class="card"><div class="row"><span>${stale?'Last seen':'Right now'}</span><b>${esc(x.near||'')}</b></div><div class="row"><span>Distance left</span><b>${Math.round(x.remaining/1000)} km</b></div><div class="row"><span>Updated</span><b>${agoText(x.ts)}${stale?' (no signal on the train)':''}</b></div></div>`:''}
+  ${route?`<div class="card"><div class="route">${route}</div></div>`:''}`;
+}
+async function poll(){
+  if(!topic){m.innerHTML='<p class="center sub" style="margin-top:40px">This link is incomplete. Ask for the link again.</p>';return}
+  try{
+    const r=await fetch('https://ntfy.sh/'+topic+'/json?poll=1&since=12h');
+    const lines=(await r.text()).trim().split('\n').filter(Boolean).map(l=>JSON.parse(l)).filter(e=>e.event==='message');
+    if(!lines.length){m.innerHTML='<p class="center sub" style="margin-top:40px">Waiting for the first update from the train. This page refreshes by itself.</p>';return}
+    draw(JSON.parse(lines[lines.length-1].message));
+  }catch(e){if(!m.querySelector('h1'))m.innerHTML='<p class="center sub" style="margin-top:40px">Couldn\'t load the trip. Check your internet; this page retries by itself.</p>'}
+}
+poll();setInterval(poll,60000);
+</script>
+</body>
+</html>
