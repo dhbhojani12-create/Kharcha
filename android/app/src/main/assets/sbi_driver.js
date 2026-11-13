@@ -1,11 +1,13 @@
-/* Kharcha top-up helper for the SBI Prepaid site.
+/* Kharcha top-up helper for the SBI Prepaid site, run behind Kharcha's own screen.
    window.__KP = {amt, last4, done:{...}} is set by the app before this runs.
-   Every automated click happens at most once per top-up: the app keeps the "done" list
-   across page loads, so a payment button is never pressed twice. */
+   The user types the captcha and OTP in Kharcha; this script fills them in, plus the amount,
+   and clicks through SBIePay. Every payment click happens at most once per top-up: the app
+   keeps the "done" list across page loads, so nothing is pressed twice. */
 (function () {
   if (window.__kdrv) return; window.__kdrv = 1;
   var P = window.__KP || {}, D = P.done || {};
   var K = window.KharchaCap;
+  var t0 = Date.now();
   function vis(e) { return e && e.offsetParent !== null; }
   function q(sel) { return Array.prototype.filter.call(document.querySelectorAll(sel), vis); }
   function txt(e) { return ((e.innerText || e.value || '') + '').replace(/\s+/g, ' ').trim(); }
@@ -18,40 +20,103 @@
   function once(k, f) { if (D[k]) return false; D[k] = 1; K.did(k); f(); return true; }
   var lastSay = '';
   function say(s, step) { var k = step + s; if (k !== lastSay) { lastSay = k; K.status(s, String(step)); } }
+  function errText() {
+    var a = q('mat-error, .error, .alert, .toast-message, .mat-snack-bar-container, .swal2-html-container, p, span, div, small');
+    for (var i = 0; i < a.length; i++) {
+      var t = txt(a[i]);
+      if (t.length > 4 && t.length < 150 && a[i].children.length === 0 &&
+          /invalid|incorrect|wrong|expired|locked|not match|failed|attempt|blocked|try again/i.test(t)) return t;
+    }
+    return '';
+  }
   var onSbi = /prepaid\.sbi/.test(location.host);
 
-  // offer to save the login the user types (only read when they tap Continue)
-  if (onSbi) document.addEventListener('click', function (ev) {
-    var b = ev.target.closest && ev.target.closest('button');
-    if (!b || !/^#\/login/.test(location.hash)) return;
-    var u = q('input[name=username]')[0], p = q('input[name=password]')[0];
-    if (u && p && u.value && p.value) { window.__klu = u.value; window.__klp = p.value; }
-  }, true);
+  /* ---------- login: captcha image to Kharcha, captcha text back ---------- */
+  function capImg() {
+    var imgs = q('img'), best = null;
+    for (var i = 0; i < imgs.length; i++) {
+      var im = imgs[i], tag = (im.src + ' ' + im.alt + ' ' + im.className + ' ' + im.id);
+      if (/captcha/i.test(tag) || /^data:image/.test(im.src)) { best = im; if (/captcha/i.test(tag)) break; }
+    }
+    return best;
+  }
+  function imgData(im) {
+    if (/^data:image/.test(im.src)) return im.src;
+    try {
+      var c = document.createElement('canvas');
+      c.width = im.naturalWidth; c.height = im.naturalHeight;
+      c.getContext('2d').drawImage(im, 0, 0);
+      return c.toDataURL('image/png');
+    } catch (e) { return null; }
+  }
+  window.__kSubmitLogin = function (u, p, c) {
+    var ue = q('input[name=username]')[0], pe = q('input[name=password]')[0];
+    var ce = q('input[placeholder="Captcha"], input[name=text]')[0];
+    if (u && ue) setVal(ue, u);
+    if (p && pe) setVal(pe, p);
+    if (!ce) { K.needUser('Captcha box not found – finish on the SBI page'); return; }
+    setVal(ce, c);
+    var b = q('button[name=verify]')[0] || byText('button', /continue|login|submit/i);
+    window.__ksub = Date.now();
+    setTimeout(function () { if (b) b.click(); else K.needUser('Tap Continue on the SBI page'); }, 150);
+  };
+  var lastCap = '', capSent = '';
+
+  /* ---------- OTP ---------- */
+  window.__kSubmitOtp = function (code) {
+    var boxes = [];
+    for (var i = 1; i <= 6; i++) { var e = q('input[name=otp' + i + ']')[0]; if (e) boxes.push(e); }
+    if (boxes.length === 6) boxes.forEach(function (e, i) { setVal(e, code.charAt(i)); });
+    else {
+      var one = q('input[type=password], input[type=tel], input[type=number], input[type=text]')[0];
+      if (!one) { K.needUser('OTP box not found – enter it on the SBI page'); return; }
+      setVal(one, code);
+    }
+    window.__kotp = Date.now();
+    setTimeout(function () {
+      var b = byText('button', /^(login|verify|submit|continue)$/i) || q('button[name=verify]')[0];
+      if (b) b.click(); else K.needUser('Tap Login on the SBI page');
+    }, 150);
+  };
 
   function tick() {
     var h = location.hash || '', title = document.title || '', body = document.body ? document.body.innerText : '';
 
     if (onSbi && /^#\/login/.test(h)) {
       var u = q('input[name=username]')[0], p = q('input[name=password]')[0];
-      var cap = q('input[placeholder="Captcha"], input[name=text]')[0];
       if (u && p && !u.value && !p.value) {
         var c = K.creds();
         if (c) { c = JSON.parse(c); setVal(u, c.u); setVal(p, c.p); }
       }
-      if (cap && u && u.value && !cap.value && document.activeElement !== cap && !window.__kcapf) {
-        window.__kcapf = 1; cap.focus(); K.keyboard();
+      var im = capImg();
+      if (im && im.complete && im.naturalWidth > 0) {
+        var key = im.src.length + im.src.slice(-40);
+        if (key !== lastCap) {
+          var d = imgData(im);
+          if (d) {
+            var err = window.__ksub ? (errText() || "SBI didn't accept that. Check the captcha – it's case-sensitive.") : '';
+            if (window.__ksub || lastCap === '') { K.captcha(d, err); window.__ksub = 0; }
+            else K.captcha(d, '');
+            lastCap = key; capSent = d;
+          } else if (!window.__kneed) { window.__kneed = 1; K.needUser('Type the captcha on the SBI page'); }
+        } else if (window.__ksub && Date.now() - window.__ksub > 7000) {
+          // rejected without a new captcha (e.g. wrong password)
+          window.__ksub = 0;
+          K.captcha(capSent, errText() || "SBI didn't accept the login. Check your User ID and password.");
+        }
+      } else if (!im && Date.now() - t0 > 12000 && !window.__kneed) {
+        window.__kneed = 1; K.needUser('Captcha not found – log in on the SBI page');
       }
-      if (cap && cap.value) window.__kcapf = 0;
-      // remember what was typed, however the form gets submitted (button, Enter, Go key)
-      if (u && u.value) window.__klu = u.value;
-      if (p && p.value) window.__klp = p.value;
-      say(u && u.value && p && p.value ? 'Type the captcha and tap Continue' : 'Log in to SBI Prepaid', 1);
       return;
     }
     if (onSbi && /^#\/otp/.test(h)) {
-      if (window.__klu && window.__klp && !window.__koff) { window.__koff = 1; K.offerLogin(window.__klu, window.__klp); }
-      K.reached('otp');
-      say('Enter the OTP – your keyboard usually suggests it', 1);
+      var ok = byText('button', /^ok$/i);
+      if (ok) { ok.click(); return; }
+      if (!window.__kotpShown) { window.__kotpShown = 1; K.otpPage(''); }
+      if (window.__kotp && Date.now() - window.__kotp > 7000) {
+        window.__kotp = 0;
+        K.otpPage(errText() || "That OTP didn't work. Check it and try again.");
+      }
       return;
     }
     if (onSbi && /^#\/home/.test(h)) {
@@ -66,16 +131,16 @@
         }
       }
       if (pick && !D.home) { once('home', function () { pick.click(); }); say('Opening your transit card…', 2); }
-      else if (!D.home) say('Tap Proceed on your transit card', 1);
+      else if (!D.home && !window.__kneedH) { window.__kneedH = 1; K.needUser('Tap Proceed on your transit card'); }
       return;
     }
     if (onSbi && /^#\/app\/management\/topUp/.test(h)) {
       if (P.last4 && !D.cardok && body.indexOf(P.last4) < 0) {
-        say('This is another card. Switch to ····' + P.last4 + ' on the page', 'card');
+        say('SBI opened a different card. Switch to ····' + P.last4 + ' on the SBI page, or continue if it is the right one.', 'card');
         return;
       }
       var inp = q('input[type=number]')[0];
-      if (!inp) return;
+      if (!inp) { say('Opening top-up…', 2); return; }
       if (!D.amt) { setVal(inp, String(P.amt)); once('amt', function () {}); say('Filled ₹' + P.amt, 2); return; }
       if (!D.proceed) {
         if (String(inp.value) !== String(P.amt)) { setVal(inp, String(P.amt)); return; }
@@ -89,7 +154,7 @@
     }
     if (onSbi && /^#\/app/.test(h) && !D.proceed) {
       if (!D.nav) { once('nav', function () { location.hash = '#/app/management/topUp'; }); say('Opening top-up…', 2); }
-      else say('Open Top Up for ····' + P.last4 + ' on the page', 'card');
+      else say('Open Top Up for ····' + P.last4 + ' on the SBI page', 'card');
       return;
     }
     if (/SBIePay/i.test(title) && !/UPI QR Wait/i.test(title)) {
@@ -113,6 +178,6 @@
       once('fin', function () { K.finished(res); });
     }
   }
-  setInterval(tick, 700);
+  setInterval(tick, 600);
   tick();
 })();
