@@ -156,6 +156,35 @@ html[data-theme="dark"] .toast{background:#273430}
 .balcard{background:#0e1513;border-radius:26px;padding:20px;color:#fff}
 html[data-theme="dark"] .balcard{background:#17201d;border:1px solid #26302c}
 .balcard .big{font-size:40px;font-weight:700;letter-spacing:-1.4px;line-height:1;margin:4px 0 6px}
+.chead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.chead h2{margin-bottom:0}
+.nfcb{flex:0 0 48px;width:48px;height:48px;border-radius:16px;background:var(--accent);color:#0e1513;display:flex;align-items:center;justify-content:center}
+.nfcb svg,.cact svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.nfcb.live{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(.92);opacity:.7}}
+.cstrip{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;margin:14px -18px 0;padding:0 18px;scroll-padding:0 18px;scrollbar-width:none}
+.cstrip::-webkit-scrollbar{display:none}
+.ccard{flex:0 0 calc(100% - 52px);max-width:340px;box-sizing:border-box;height:164px;border-radius:24px;background:#1e2a26;color:#fff;padding:18px;display:flex;flex-direction:column;justify-content:space-between;scroll-snap-align:center;opacity:.6;transition:opacity .2s}
+.cstrip .ccard:only-child{flex-basis:100%;max-width:none}
+.ccard.on{background:#0e1513;opacity:1}
+html[data-theme="dark"] .ccard.on{background:#17201d;border:1px solid #26302c}
+.ccard .ch{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#a9b8b2}
+.ccard .ch button{font-size:12px;color:#a9b8b2;padding:4px 9px;border-radius:9px;background:#ffffff14}
+.ccard .cb{font-size:40px;font-weight:700;letter-spacing:-1.2px;line-height:1}
+.ccard .cf{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#a9b8b2}
+.cdots{display:flex;justify-content:center;gap:6px;margin-top:10px}
+.cdots i{width:6px;height:6px;border-radius:3px;background:var(--edge);transition:width .2s}
+.cdots i.on{width:18px;background:var(--ink)}
+.cact{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.cact .btn{margin-top:0;height:48px;border-radius:16px;font-size:14px;gap:8px;background:var(--card)}
+.cpill{margin-top:12px;padding:10px 14px;border-radius:14px;background:var(--okbg);color:var(--okink);font-size:13px;font-weight:600;text-align:center}
+.cjs{padding:14px 16px 6px}
+.cjh{display:flex;justify-content:space-between;align-items:baseline}
+.cjh h4{margin:0;font-size:15px}
+.cjh span{font-size:12px;color:var(--mut)}
+.cjd{font-size:12px;font-weight:600;color:var(--mut);margin-top:12px;text-transform:uppercase;letter-spacing:.6px}
+.jrow .t small.ok{color:var(--okink)}
+.jrow b.g{font-size:17px}
 .jrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
 .jrow:last-child{border-bottom:0}
 .jrow .t{flex:1;min-width:0}
@@ -461,7 +490,8 @@ function topUpSheet(id){
 function renameSheet(id){
   const c=loadCards().list[id];if(!c)return;
   openSheet(`<h3>Name this card</h3><input id="cN" placeholder="Metro, Chalo, …" value="${esc(c.name||'')}" style="margin-top:8px">
-  <button class="btn pri" id="cOk">Save</button><button class="btn danger" id="cDel">Remove this card</button>`,sh=>{
+  <button class="btn pri" id="cOk">Save</button>${c.trace?'<button class="btn" id="cRaw">Show what the card sent</button>':''}<button class="btn danger" id="cDel">Remove this card</button>`,sh=>{
+    const rw=sh.querySelector('#cRaw');if(rw)rw.onclick=()=>{closeSheet();setTimeout(()=>rawSheet(id),200)};
     sh.querySelector('#cOk').onclick=()=>{const s=loadCards();s.list[id].name=sh.querySelector('#cN').value.trim();saveCards(s);closeSheet();render()};
     sh.querySelector('#cDel').onclick=()=>{if(!confirm('Remove this card from Kharcha? Your expenses stay.'))return;
       const s=loadCards();delete s.list[id];saveCards(s);selCard=null;closeSheet();render();toast('Card removed')}});
@@ -484,67 +514,104 @@ function logSpend(id){
     payee:cardName(c),note:'Card spend since last tap',mode:'Card',ts:Date.now(),src:'nfc'});
   c.prevBalance=c.balance;c.prevReadAt=c.readAt;saveCards(s);save();render();toast('Added '+inr(si.spent)+' travel ✓');
 }
-function cardBlock(c,open){
+function cardPill(c){
+  const si=spendInfo(c);
+  const pend=(c.topups||[]).filter(t=>t.ts>(c.readAt||0)).reduce((s,t)=>s+t.amt,0);
+  if(pend>0)return`+${inr(pend)} topped up – tap to refresh`;
+  if(si&&si.unexplained)return`Balance went up ${inr(-si.spent)} – record the top-up`;
+  if(si&&si.spent>0)return`Spent ${inr(si.spent)} since last tap`;
+  if(si&&si.topped>0)return`Topped up ${inr(si.topped)}`;
+  return'';
+}
+function miniCard(c,on){
+  const last4=c.pan?c.pan.slice(-4):'';
+  return `<div class="ccard${on?' on':''}" data-sel="${esc(c.id)}">
+    <div class="ch"><span>${esc(cardName(c))}</span><button data-ren="${esc(c.id)}" aria-label="Edit ${esc(cardName(c))}">Edit</button></div>
+    <span class="cb g">${c.balance!=null?inr(c.balance):'—'}</span>
+    <div class="cf">${last4?`<span class="pill">···· ${esc(last4)}</span>`:'<span></span>'}<span>Read ${esc(dayLabel(c.readAt))} ${esc(tm(c.readAt))}</span></div>
+  </div>`;
+}
+function cardDetail(c){
+  if(!c)return'';
   const si=spendInfo(c);
   const js=realJourneys(c);
-  const unlogged=js.filter(j=>j.amt>0&&!(c.known||{})[jkey(j)]).length;
-  const pend=(c.topups||[]).filter(t=>t.ts>(c.readAt||0)).reduce((s,t)=>s+t.amt,0);
-  let pill='';
-  if(pend>0)pill=`<span class="pill" style="color:#5eeab4">+${inr(pend)} topped up – tap to refresh</span>`;
-  else if(si&&si.unexplained)pill=`<span class="pill" style="color:#ffd79a">balance went up ${inr(-si.spent)} – record the top-up</span>`;
-  else if(si&&si.spent>0)pill=`<span class="pill" style="color:#ffb4a2">spent ${inr(si.spent)} since last tap</span>`;
-  else if(si&&si.topped>0)pill=`<span class="pill" style="color:#5eeab4">topped up ${inr(si.topped)}</span>`;
-  return `<div class="balcard" style="margin-top:12px">
-    <button style="display:flex;width:100%;align-items:flex-start;justify-content:space-between;gap:10px;color:#fff;text-align:left" data-sel="${esc(c.id)}">
-      <span><span style="font-size:13px;color:#a9b8b2">${esc(cardName(c))}</span>
-      <span class="big g" style="display:block">${c.balance!=null?inr(c.balance):'—'}</span></span>
-      <span data-ren="${esc(c.id)}" style="font-size:12px;color:#a9b8b2;padding:4px 8px;border-radius:9px;background:#ffffff14">Edit</span>
-    </button>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-      ${c.pan?`<span class="pill">${esc(c.pan)}</span>`:''}${pill}
-    </div>
-    <div style="font-size:12px;color:#a9b8b2;margin-top:10px">Read ${esc(dayLabel(c.readAt))} ${esc(tm(c.readAt))}</div>
-  </div>
-  ${open?`<div class="row" style="margin-top:8px"><button class="btn" data-top="${esc(c.id)}">I topped up</button>${si&&si.spent>0&&!js.length?`<button class="btn pri" data-spend="${esc(c.id)}">Log ${inr(si.spent)} travel</button>`:''}</div>
-  ${js.length?`<div class="card" style="padding:6px 16px"><h4 style="margin:12px 0 2px">Journeys on the card</h4>${js.map(j=>{
-      const got=(c.known||{})[jkey(j)];
-      const when=j.dayOnly?dayLabel(j.ts):dayLabel(j.ts)+' '+tm(j.ts);
-      return `<div class="jrow"><div class="t"><b>${esc(when)}</b><small>${esc(j.status)}${got?' · logged':''}</small></div><b>${j.amt>0?inr(j.amt):'—'}</b></div>`}).join('')}</div>
-    ${unlogged?`<button class="btn pri" data-imp="${esc(c.id)}">Add ${unlogged} journey${unlogged>1?'s':''} to expenses</button>`:'<div class="small muted" style="text-align:center;margin-top:8px">All journeys are logged ✓</div>'}`:
-    '<div class="small muted" style="text-align:center;margin-top:10px">This card keeps no journey list on the chip, so Kharcha tracks it by balance.</div>'}`:''}`;
+  const known=c.known||{};
+  const todo=js.filter(j=>j.amt>0&&!known[jkey(j)]);
+  const todoAmt=Math.round(todo.reduce((s,j)=>s+j.amt,0)*100)/100;
+  const pill=cardPill(c);
+  let list='';
+  if(js.length){
+    let lastDay='';
+    list=`<div class="card cjs"><div class="cjh"><h4>Last taps on the card</h4><span>chip keeps ${js.length}</span></div>${js.map(j=>{
+      const day=dayLabel(j.ts);const head=day!==lastDay?`<div class="cjd">${esc(day)}</div>`:'';lastDay=day;
+      const got=known[jkey(j)];const fare=j.amt>0;
+      return `${head}<div class="jrow"><div class="t"><b>${fare?'Fare':'Tap, no charge'}</b><small${got?' class="ok"':''}>${fare?(got?'Logged ✓':'Not logged yet'):'Usually the entry tap'}${j.dayOnly?'':' · '+esc(tm(j.ts))}</small></div>${fare?`<b class="g">${inr(j.amt)}</b>`:'<span class="muted">₹0</span>'}</div>`}).join('')}</div>`;
+  }else{
+    list=`<div class="small muted" style="text-align:center;margin-top:14px">This card keeps no journey list on the chip, so Kharcha tracks it by balance.</div>`;
+  }
+  let act='';
+  if(todo.length)act=`<button class="btn pri" data-imp="${esc(c.id)}">Add ${inr(todoAmt)} ${todo.length>1?todo.length+' fares':'fare'} to expenses</button>`;
+  else if(!js.length&&si&&si.spent>0)act=`<button class="btn pri" data-spend="${esc(c.id)}">Log ${inr(si.spent)} travel</button>`;
+  else if(js.length)act=`<div class="small muted" style="text-align:center;margin-top:10px">All fares are logged ✓</div>`;
+  return `${pill?`<div class="cpill">${esc(pill)}</div>`:''}${list}${act}`;
 }
 function vCard(){
   const cards=cardList();
   const can=APP&&APP.readCard;
-  if(!selCard&&cards.length)selCard=cards[0].id;
-  view.innerHTML=`<h2 class="g">Travel cards</h2>
-  <div class="small muted" style="margin:-8px 2px 0">Tap a metro or Chalo card on the back of your phone</div>
+  if(!cards.some(c=>c.id===selCard))selCard=cards.length?cards[0].id:null;
+  const cur=cards.find(c=>c.id===selCard);
+  const busy=cardsBusy?`<div class="cpill">Hold the card against the upper back of your phone…</div>`:'';
+  view.innerHTML=`<div id="cardsV"><div class="chead"><div><h2 class="g">Travel cards</h2>
+    <div class="small muted">${cards.length>1?cards.length+' cards · swipe to switch':cards.length?'Tap the card again to refresh':'Metro, Chalo or any NCMC card'}</div></div>
+    ${can&&cards.length?`<button class="nfcb${cardsBusy?' live':''}" id="tapB" aria-label="Tap a card to read it"><svg viewBox="0 0 24 24"><path d="M6 8.5a5 5 0 0 1 0 7M9.5 6a8.5 8.5 0 0 1 0 12M13 3.5a12 12 0 0 1 0 17"/></svg></button>`:''}</div>
   ${!can?`<div class="card"><b>Needs the latest app</b><div class="small muted" style="margin-top:4px">Card reading is part of the Kharcha Android app. Install the newest version to use it.</div></div>`:''}
-  ${cardErr?`<div class="banner" style="margin-top:14px">${esc(cardErr)}</div>`:''}
-  <div id="cards">${cards.map(c=>cardBlock(c,c.id===selCard)).join('')}</div>
-  ${can?`<div class="tapbox ${cardsBusy?'live':''}" id="tapBox" style="margin-top:14px">
+  ${cardErr?`<div class="banner" style="margin-top:12px">${esc(cardErr)}</div>`:''}
+  ${cards.length?busy:''}
+  ${cards.length?`<div class="cstrip" id="cStrip">${cards.map(c=>miniCard(c,c.id===selCard)).join('')}</div>
+  ${cards.length>1?`<div class="cdots" aria-hidden="true">${cards.map(c=>`<i${c.id===selCard?' class="on"':''}></i>`).join('')}</div>`:''}
+  <div class="cact"><button class="btn" id="refB"${can?'':' disabled'}><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Refresh</button>
+    <button class="btn" data-top="${esc(selCard)}"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>I topped up</button></div>
+  <div id="cDetail">${cardDetail(cur)}</div>
+  <div class="small muted" style="text-align:center;margin-top:10px">Read only. Kharcha can never change your balance.</div>`:
+  (can?`<div class="tapbox ${cardsBusy?'live':''}" id="tapBox" style="margin-top:14px">
     <div class="wave"><svg viewBox="0 0 24 24"><path d="M6 8a8 8 0 0 1 0 8M10 5a13 13 0 0 1 0 14M14 2a18 18 0 0 1 0 20"/><circle cx="3" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg></div>
-    <b>${cardsBusy?'Hold the card against your phone…':(cards.length?'Tap a card to read or refresh':'Tap card to read')}</b>
+    <b>${cardsBusy?'Hold the card against your phone…':'Tap card to read'}</b>
     <div class="small muted">${cardsBusy?'Usually the upper back of the phone. Keep it still for a second.':'Read only — Kharcha can never change your balance. Each card is kept on its own.'}</div>
-  </div>`:''}
-  ${cards.length&&cards[0].trace?`<button class="btn" id="rawB">Show what the card sent</button>`:''}`;
+  </div>`:'')}</div>`;
   const tb=$('#tapBox');if(tb&&!cardsBusy)tb.onclick=tapCard;
-  $('#cards').addEventListener('click',ev=>{
+  const nb=$('#tapB');if(nb&&!cardsBusy)nb.onclick=tapCard;
+  const rf=$('#refB');if(rf&&!cardsBusy)rf.onclick=tapCard;
+  const strip=$('#cStrip');
+  if(strip){
+    const idx=cards.findIndex(c=>c.id===selCard);
+    const el=strip.children[idx];if(el&&idx>0){const sr=strip.getBoundingClientRect(),er=el.getBoundingClientRect();strip.scrollLeft+=er.left+er.width/2-(sr.left+sr.width/2)}
+    let tmr=null;
+    strip.addEventListener('scroll',()=>{clearTimeout(tmr);tmr=setTimeout(()=>{
+      const sr=strip.getBoundingClientRect(),mid=sr.left+sr.width/2;let best=0,bd=1e9;
+      [...strip.children].forEach((ch,i)=>{const r=ch.getBoundingClientRect(),d=Math.abs(r.left+r.width/2-mid);if(d<bd){bd=d;best=i}});
+      const id=cards[best].id;if(id===selCard)return;selCard=id;
+      [...strip.children].forEach((ch,i)=>ch.classList.toggle('on',i===best));
+      document.querySelectorAll('.cdots i').forEach((d,i)=>d.classList.toggle('on',i===best));
+      const tp=document.querySelector('.cact [data-top]');if(tp)tp.dataset.top=id;
+      $('#cDetail').innerHTML=cardDetail(cards[best])},120)},{passive:true});
+  }
+  $('#cardsV').addEventListener('click',ev=>{
     const r=ev.target.closest('[data-ren]');if(r){ev.stopPropagation();return renameSheet(r.dataset.ren)}
     const t=ev.target.closest('[data-top]');if(t)return topUpSheet(t.dataset.top);
     const sp=ev.target.closest('[data-spend]');if(sp)return logSpend(sp.dataset.spend);
     const im=ev.target.closest('[data-imp]');if(im)return importJourneys(im.dataset.imp);
-    const s=ev.target.closest('[data-sel]');if(s){selCard=selCard===s.dataset.sel?null:s.dataset.sel;render()}});
-  const rb=$('#rawB');if(rb)rb.onclick=()=>{
-    const c=cards[0];
-    const dump=JSON.stringify({cardType:c.cardType,aid:c.aid,balance:c.balance,expiry:c.expiry,journeys:realJourneys(c).length,trace:c.trace},null,1);
-    openSheet(`<h3>Card response</h3><div class="small muted">Tap Copy, then paste it to Claude.</div>
-    <div class="mitem" style="word-break:break-all;font-size:11px;font-family:monospace;max-height:46vh;overflow:auto">${esc(dump)}</div>
-    <button class="btn pri" id="rCopy">Copy</button><button class="btn" id="rOk">Close</button>`,sh=>{
-      sh.querySelector('#rCopy').onclick=()=>{
-        try{navigator.clipboard.writeText(dump);toast('Copied ✓')}
-        catch(e){const t=document.createElement('textarea');t.value=dump;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('Copied ✓')}};
-      sh.querySelector('#rOk').onclick=closeSheet})};
+    const s=ev.target.closest('[data-sel]');if(s&&s.dataset.sel!==selCard){selCard=s.dataset.sel;render()}});
+}
+function rawSheet(id){
+  const c=loadCards().list[id];if(!c)return;
+  const dump=JSON.stringify({cardType:c.cardType,aid:c.aid,balance:c.balance,expiry:c.expiry,journeys:realJourneys(c).length,trace:c.trace},null,1);
+  openSheet(`<h3>Card response</h3><div class="small muted">Tap Copy, then paste it to Claude. It includes the full card number.</div>
+  <div class="mitem" style="word-break:break-all;font-size:11px;font-family:monospace;max-height:46vh;overflow:auto">${esc(dump)}</div>
+  <button class="btn pri" id="rCopy">Copy</button><button class="btn" id="rOk">Close</button>`,sh=>{
+    sh.querySelector('#rCopy').onclick=()=>{
+      try{navigator.clipboard.writeText(dump);toast('Copied ✓')}
+      catch(e){const t=document.createElement('textarea');t.value=dump;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('Copied ✓')}};
+    sh.querySelector('#rOk').onclick=closeSheet});
 }
 
 /* ---------- export ---------- */
