@@ -118,12 +118,25 @@
   };
   var lastCap = '', capSent = '';
 
-  /* true only when the page shows a card number and it is not the chosen one */
-  function otherCard(body) {
-    if (body.indexOf(P.last4) >= 0) return false;
-    var re = /(?:\d{4}|[Xx*•]{4})[\sXx*•-]{0,12}[Xx*•]{4}[\sXx*•-]{0,4}(\d{4})\b/g, m, seen = false;
-    while ((m = re.exec(body))) { seen = true; if (m[1] === P.last4) return false; }
-    return seen;
+  /* the card the top-up page is on: last 4 digits after the last "Card Number" (Card Details) */
+  function shownCard(body) {
+    var re = /Card Number[\s:]*[X*•x\s]{4,}?(\d{4})\b/g, m, last = null;
+    while ((m = re.exec(body))) last = m[1];
+    return last;
+  }
+  /* SBI's "My Cards" carousel: press its right arrow to go to the next card */
+  function nextCardArrow() {
+    var heads = q('h1,h2,h3,h4,h5,div,span,p'), head = null;
+    for (var i = 0; i < heads.length; i++) if (/^my cards$/i.test(txt(heads[i]))) { head = heads[i]; break; }
+    var box = head, best = null;
+    for (var up = 0; box && up < 8; up++, box = box.parentElement) {
+      var cands = Array.prototype.filter.call(box.querySelectorAll('button, a, [role=button], mat-icon, .slick-next, .owl-next, [class*=next], [class*=right]'), function (e) { return vis(e) && txt(e).length < 3; });
+      if (cands.length >= 2) {
+        cands.forEach(function (e) { var r = e.getBoundingClientRect(); if (!best || r.left > best.getBoundingClientRect().left) best = e; });
+        break;
+      }
+    }
+    return best;
   }
   function tick() {
     var h = location.hash || '', title = document.title || '', body = document.body ? document.body.innerText : '';
@@ -176,8 +189,18 @@
       return;
     }
     if (onSbi && /^#\/app\/management\/topUp/.test(h)) {
-      if (P.last4 && !D.cardok && otherCard(body)) {
-        say('SBI opened a different card. Switch to ····' + P.last4 + ' on the SBI page, or continue if it is the right one.', 'card');
+      var cur = shownCard(body);
+      if (P.last4 && !D.cardok && cur && cur !== P.last4) {
+        window.__ksw = window.__ksw || { n: 0, t: 0 };
+        var sw = window.__ksw;
+        if (sw.n < 6) {
+          if (Date.now() - sw.t > 2000) {
+            var nx = nextCardArrow();
+            if (nx) { sw.n++; sw.t = Date.now(); nx.click(); say('Switching to card ····' + P.last4 + '…', 2); return; }
+            sw.n = 6;
+          } else return;
+        }
+        say('SBI opened card ····' + cur + '. Switch to ····' + P.last4 + ' on the SBI page, or continue if it is the right one.', 'card');
         return;
       }
       var inp = q('input[type=number]')[0];
