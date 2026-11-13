@@ -25,7 +25,7 @@
     var b = ev.target.closest && ev.target.closest('button');
     if (!b || !/^#\/login/.test(location.hash)) return;
     var u = q('input[name=username]')[0], p = q('input[name=password]')[0];
-    if (u && p && u.value && p.value) K.offerLogin(u.value, p.value);
+    if (u && p && u.value && p.value) { window.__klu = u.value; window.__klp = p.value; }
   }, true);
 
   function tick() {
@@ -42,10 +42,14 @@
         window.__kcapf = 1; cap.focus(); K.keyboard();
       }
       if (cap && cap.value) window.__kcapf = 0;
+      // remember what was typed, however the form gets submitted (button, Enter, Go key)
+      if (u && u.value) window.__klu = u.value;
+      if (p && p.value) window.__klp = p.value;
       say(u && u.value && p && p.value ? 'Type the captcha and tap Continue' : 'Log in to SBI Prepaid', 1);
       return;
     }
     if (onSbi && /^#\/otp/.test(h)) {
+      if (window.__klu && window.__klp && !window.__koff) { window.__koff = 1; K.offerLogin(window.__klu, window.__klp); }
       K.reached('otp');
       say('Enter the OTP – your keyboard usually suggests it', 1);
       return;
