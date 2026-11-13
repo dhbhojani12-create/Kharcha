@@ -58,12 +58,14 @@
       return c.toDataURL('image/png');
     } catch (e) { return null; }
   }
-  function capInput() { return q('input[placeholder="Captcha"], input[name=text]')[0]; }
+  function capInput() { return q('input[placeholder*="captcha" i], input[name=text], input[formcontrolname*="captcha" i], input[formcontrolname=text], input#text')[0]; }
+  /* SBI names its boxes with formcontrolname / id, not always name= */
+  function by(n) { return 'input[name="' + n + '"], input[formcontrolname="' + n + '"], input#' + n; }
   function field(which) {
-    if (which === 'username') return q('input[name=username]')[0];
-    if (which === 'password') return q('input[name=password]')[0];
+    if (which === 'username') return q(by('username'))[0] || q('input[placeholder*="User ID" i]')[0];
+    if (which === 'password') return q(by('password'))[0] || q('input[type=password]')[0];
     if (which === 'captcha') return capInput();
-    if (/^otp\d$/.test(which)) return q('input[name=' + which + ']')[0];
+    if (/^otp\d$/.test(which)) return q(by(which))[0];
     if (which === 'otp') return q('input[type=password], input[type=tel], input[type=number], input[type=text]')[0];
     return null;
   }
