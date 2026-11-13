@@ -118,6 +118,13 @@
   };
   var lastCap = '', capSent = '';
 
+  /* true only when the page shows a card number and it is not the chosen one */
+  function otherCard(body) {
+    if (body.indexOf(P.last4) >= 0) return false;
+    var re = /(?:\d{4}|[Xx*•]{4})[\sXx*•-]{0,12}[Xx*•]{4}[\sXx*•-]{0,4}(\d{4})\b/g, m, seen = false;
+    while ((m = re.exec(body))) { seen = true; if (m[1] === P.last4) return false; }
+    return seen;
+  }
   function tick() {
     var h = location.hash || '', title = document.title || '', body = document.body ? document.body.innerText : '';
 
@@ -169,7 +176,7 @@
       return;
     }
     if (onSbi && /^#\/app\/management\/topUp/.test(h)) {
-      if (P.last4 && !D.cardok && body.indexOf(P.last4) < 0) {
+      if (P.last4 && !D.cardok && otherCard(body)) {
         say('SBI opened a different card. Switch to ····' + P.last4 + ' on the SBI page, or continue if it is the right one.', 'card');
         return;
       }
