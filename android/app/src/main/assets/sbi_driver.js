@@ -59,60 +59,43 @@
     } catch (e) { return null; }
   }
   function capInput() { return q('input[placeholder="Captcha"], input[name=text]')[0]; }
-  /* fill ID + password first; SBI only adds the captcha box after both are in */
-  window.__kSubmitLogin = function (u, p, c) {
-    var ue = q('input[name=username]')[0], pe = q('input[name=password]')[0];
-    if (u && ue) setVal(ue, u);
-    if (p && pe) setVal(pe, p);
-    var keyBefore = lastCap, tries = 0;
+  function field(which) {
+    if (which === 'username') return q('input[name=username]')[0];
+    if (which === 'password') return q('input[name=password]')[0];
+    if (which === 'captcha') return capInput();
+    if (/^otp\d$/.test(which)) return q('input[name=' + which + ']')[0];
+    if (which === 'otp') return q('input[type=password], input[type=tel], input[type=number], input[type=text]')[0];
+    return null;
+  }
+  /* The app types into the focused field with real key presses (SBI ignores script-set text). */
+  window.__kFocus = function (which) {
+    var el = field(which);
+    if (!el) return false;
+    var proto = HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, '');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.focus();
+    try { el.setSelectionRange(0, 0); } catch (e) { }
+    return document.activeElement === el;
+  };
+  window.__kCapBox = function () { return !!capInput(); };
+  window.__kOtpBoxes = function () { var n = 0; for (var i = 1; i <= 6; i++) if (field('otp' + i)) n++; return n; };
+  window.__kContinue = function () {
+    var b = q('button[name=verify]')[0] || byText('button', /continue|login|submit/i);
     window.__ksub = Date.now();
-    (function wait() {
-      var ce = capInput();
-      if (!ce) {
-        if (++tries < 25) return setTimeout(wait, 200);
-        window.__ksub = 0;
-        K.needUser('SBI did not show the captcha box. Finish the login on the SBI page.');
-        return;
-      }
-      var im = capImg();
-      if (keyBefore && im && (im.src.length + im.src.slice(-40)) !== keyBefore) {
-        window.__ksub = 0; // a new captcha appeared: ask for that one instead
-        return; // tick() sends the new image with a note
-      }
-      setVal(ce, c);
-      var b = q('button[name=verify]')[0] || byText('button', /continue|login|submit/i);
-      window.__ksub = Date.now();
-      setTimeout(function () { if (b) b.click(); else K.needUser('Tap Continue on the SBI page'); }, 200);
-    })();
+    if (b) b.click(); else K.needUser('Tap Continue on the SBI page.');
+  };
+  window.__kLogin = function () {
+    var b = byText('button', /^(login|verify|submit|continue)$/i) || q('button[name=verify]')[0];
+    window.__kotp = Date.now();
+    if (b) b.click(); else K.needUser('Tap Login on the SBI page.');
   };
   var lastCap = '', capSent = '';
-
-  /* ---------- OTP ---------- */
-  window.__kSubmitOtp = function (code) {
-    var boxes = [];
-    for (var i = 1; i <= 6; i++) { var e = q('input[name=otp' + i + ']')[0]; if (e) boxes.push(e); }
-    if (boxes.length === 6) boxes.forEach(function (e, i) { setVal(e, code.charAt(i)); });
-    else {
-      var one = q('input[type=password], input[type=tel], input[type=number], input[type=text]')[0];
-      if (!one) { K.needUser('OTP box not found – enter it on the SBI page'); return; }
-      setVal(one, code);
-    }
-    window.__kotp = Date.now();
-    setTimeout(function () {
-      var b = byText('button', /^(login|verify|submit|continue)$/i) || q('button[name=verify]')[0];
-      if (b) b.click(); else K.needUser('Tap Login on the SBI page');
-    }, 150);
-  };
 
   function tick() {
     var h = location.hash || '', title = document.title || '', body = document.body ? document.body.innerText : '';
 
     if (onSbi && /^#\/login/.test(h)) {
-      var u = q('input[name=username]')[0], p = q('input[name=password]')[0];
-      if (u && p && !u.value && !p.value) {
-        var c = K.creds();
-        if (c) { c = JSON.parse(c); setVal(u, c.u); setVal(p, c.p); }
-      }
       var im = capImg();
       if (im && im.complete && im.naturalWidth > 0) {
         var key = im.src.length + im.src.slice(-40);

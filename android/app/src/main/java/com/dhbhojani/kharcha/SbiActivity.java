@@ -20,6 +20,8 @@ import android.text.InputType;
 import android.text.TextWatcher;
 import android.util.Base64;
 import android.view.Gravity;
+import android.view.KeyCharacterMap;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
@@ -500,18 +502,70 @@ public class SbiActivity extends Activity {
             pendingSave = rememberC.isChecked() ? new String[]{u, p} : null;
         }
         if (c.isEmpty()) { err("Type the captcha"); return; }
+        if (u == null) {
+            String[] l = SbiLogin.load(this);
+            if (l == null) { SbiLogin.forget(this); show("captcha", "Enter your User ID and password again."); return; }
+            u = l[0];
+            p = l[1];
+        }
         startSms();
-        web.evaluateJavascript("window.__kSubmitLogin&&window.__kSubmitLogin(" + JSONObject.quote(u == null ? "" : u) + ","
-                + JSONObject.quote(p == null ? "" : p) + "," + JSONObject.quote(c) + ")", null);
         show("checking", null);
+        hideKeyboard();
+        final String fu = u, fp = p;
+        web.postDelayed(() -> typeField("username", fu, () -> typeField("password", fp, () -> waitCaptchaBox(0, c))), 250);
     }
 
     void submitOtp() {
         String c = codeE.getText().toString().replaceAll("\\D", "");
         if (c.length() != 6) { err("The OTP has 6 digits"); return; }
-        web.evaluateJavascript("window.__kSubmitOtp&&window.__kSubmitOtp(" + JSONObject.quote(c) + ")", null);
         show("working", "Logging in…");
         steps(1, 2);
+        hideKeyboard();
+        web.evaluateJavascript("window.__kOtpBoxes?window.__kOtpBoxes():0", r -> {
+            if ("6".equals(r)) typeOtpBox(1, c);
+            else typeField("otp", c, () -> web.evaluateJavascript("window.__kLogin()", null));
+        });
+    }
+
+    void typeOtpBox(int i, String c) {
+        if (i > 6) { web.postDelayed(() -> web.evaluateJavascript("window.__kLogin()", null), 250); return; }
+        typeField("otp" + i, c.substring(i - 1, i), () -> typeOtpBox(i + 1, c));
+    }
+
+    /* ---------------- real key presses into the hidden page ---------------- */
+    void typeField(String which, String val, Runnable next) {
+        web.requestFocus();
+        web.evaluateJavascript("window.__kFocus?window.__kFocus(" + JSONObject.quote(which) + "):false", r -> {
+            if ("true".equals(r)) typeText(val);
+            web.postDelayed(next, 350);
+        });
+    }
+
+    void typeText(String s) {
+        KeyCharacterMap km = KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD);
+        for (char ch : s.toCharArray()) {
+            KeyEvent[] evs = km.getEvents(new char[]{ch});
+            if (evs == null) {
+                web.evaluateJavascript("document.execCommand('insertText',false," + JSONObject.quote(String.valueOf(ch)) + ")", null);
+                continue;
+            }
+            for (KeyEvent e : evs) web.dispatchKeyEvent(e);
+        }
+    }
+
+    void waitCaptchaBox(int n, String c) {
+        if (!"checking".equals(state)) return; // a new captcha arrived meanwhile: the user types that one
+        web.evaluateJavascript("window.__kCapBox?window.__kCapBox():false", r -> {
+            if (!"checking".equals(state)) return;
+            if ("true".equals(r)) {
+                typeField("captcha", c, () -> web.evaluateJavascript("window.__kContinue()", null));
+            } else if (n < 25) {
+                web.postDelayed(() -> waitCaptchaBox(n + 1, c), 200);
+            } else {
+                show("help", "SBI did not show the captcha box.");
+                showPage(true);
+            }
+        });
     }
 
     void newCaptcha() {
