@@ -19,7 +19,15 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.app.AlertDialog;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
+
+import java.io.InputStream;
+import java.util.HashSet;
+import java.util.Set;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +35,10 @@ import java.util.List;
 /**
  * Opens the SBI Prepaid site inside Kharcha. The user logs in themselves.
  *
- * Capture mode: records which screens the site shows (field names and button labels, never
+ * Top-up mode (amount passed in): fills the saved login, then the amount, and clicks through
+ * SBIePay to the UPI app. The user always types the captcha and OTP and approves in UPI.
+ *
+ * Capture: also records which screens the site shows (field names and button labels, never
  * what is typed) and the data it loads, with passwords, OTPs, tokens and long numbers masked,
  * so a simpler top-up screen can be built on top of it. The capture stays on the phone until
  * the user taps Copy.
@@ -65,35 +76,103 @@ public class SbiActivity extends Activity {
             " var s=location.hash+els.join();if(s!==last){last=s;rec({k:'screen',at:location.hash,title:document.title,els:els})}}" +
             "setInterval(snap,1500);snap();})();";
 
+    // top-up mode
+    double amt;
+    String last4, label;
+    final Set<String> done = new HashSet<>();
+    String driver = "";
+    volatile String host = "";
+    String[] pendingLogin;
+    boolean askedSave;
+
+    LinearLayout strip;
+    TextView titleV, statusV;
+    View[] seg = new View[3];
+    Button actB;
+
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
-        FrameLayout root = new FrameLayout(this);
+        Intent in = getIntent();
+        amt = in.getDoubleExtra("amt", 0);
+        last4 = in.getStringExtra("last4");
+        label = in.getStringExtra("label");
+        boolean assist = amt > 0;
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(Color.WHITE);
+
+        if (assist) {
+            strip = new LinearLayout(this);
+            strip.setOrientation(LinearLayout.VERTICAL);
+            strip.setBackgroundColor(Color.parseColor("#0E1513"));
+            strip.setPadding(dp(16), dp(14), dp(16), dp(14));
+            LinearLayout row = new LinearLayout(this);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            titleV = new TextView(this);
+            titleV.setTextColor(Color.WHITE);
+            titleV.setTextSize(16);
+            titleV.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+            titleV.setText((label != null && !label.isEmpty() ? label + " · " : "") + "₹" + fmt(amt) + " top-up");
+            row.addView(titleV, new LinearLayout.LayoutParams(0, -2, 1));
+            Button cancel = btn("Cancel", "#1E2A26", "#A9B8B2");
+            cancel.setTextSize(13);
+            cancel.setOnClickListener(v -> finish());
+            row.addView(cancel, new LinearLayout.LayoutParams(dp(84), dp(38)));
+            strip.addView(row);
+
+            LinearLayout bars = new LinearLayout(this);
+            LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(-1, dp(4));
+            blp.setMargins(0, dp(10), 0, dp(8));
+            for (int i = 0; i < 3; i++) {
+                seg[i] = new View(this);
+                LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(0, dp(4), 1);
+                if (i < 2) sp.setMargins(0, 0, dp(6), 0);
+                bars.addView(seg[i], sp);
+            }
+            strip.addView(bars, blp);
+            statusV = new TextView(this);
+            statusV.setTextColor(Color.parseColor("#A9B8B2"));
+            statusV.setTextSize(13.5f);
+            strip.addView(statusV);
+            // long-press the status to copy the masked capture (for fixing problems)
+            statusV.setOnLongClickListener(v -> { copy(); return true; });
+            actB = btn("", "#5EEAB4", "#0E1513");
+            actB.setVisibility(View.GONE);
+            LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(-1, dp(44));
+            alp.setMargins(0, dp(10), 0, 0);
+            strip.addView(actB, alp);
+            root.addView(strip, new LinearLayout.LayoutParams(-1, -2));
+            setStep("Log in to SBI Prepaid", "1");
+            try (InputStream is = getAssets().open("sbi_driver.js")) {
+                java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = is.read(buf)) > 0) bo.write(buf, 0, n);
+                driver = bo.toString("UTF-8");
+            } catch (Exception e) { driver = ""; }
+        }
+
         web = new WebView(this);
-        root.addView(web, new FrameLayout.LayoutParams(-1, -1));
+        root.addView(web, new LinearLayout.LayoutParams(-1, 0, 1));
 
         LinearLayout bar = new LinearLayout(this);
-        bar.setOrientation(LinearLayout.HORIZONTAL);
-        bar.setPadding(dp(12), dp(10), dp(12), dp(14));
-        bar.setBackgroundColor(Color.parseColor("#0E1513"));
         copyB = btn("Copy for Claude (0)", "#5EEAB4", "#0E1513");
-        Button done = btn("Close", "#1E2A26", "#FFFFFF");
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(48), 1);
-        lp.setMargins(0, 0, dp(8), 0);
-        bar.addView(copyB, lp);
-        bar.addView(done, new LinearLayout.LayoutParams(dp(96), dp(48)));
-        FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM);
-        root.addView(bar, bp);
-        web.setPadding(0, 0, 0, 0);
+        if (!assist) {
+            bar.setOrientation(LinearLayout.HORIZONTAL);
+            bar.setPadding(dp(12), dp(10), dp(12), dp(14));
+            bar.setBackgroundColor(Color.parseColor("#0E1513"));
+            Button close = btn("Close", "#1E2A26", "#FFFFFF");
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(48), 1);
+            lp.setMargins(0, 0, dp(8), 0);
+            bar.addView(copyB, lp);
+            bar.addView(close, new LinearLayout.LayoutParams(dp(96), dp(48)));
+            copyB.setOnClickListener(v -> copy());
+            close.setOnClickListener(v -> finish());
+            root.addView(bar, new LinearLayout.LayoutParams(-1, -2));
+        }
         setContentView(root);
-        bar.post(() -> {
-            FrameLayout.LayoutParams wp = (FrameLayout.LayoutParams) web.getLayoutParams();
-            wp.bottomMargin = bar.getHeight();
-            web.setLayoutParams(wp);
-        });
-
-        copyB.setOnClickListener(v -> copy());
-        done.setOnClickListener(v -> finish());
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -119,22 +198,83 @@ public class SbiActivity extends Activity {
                     i.setComponent(null);
                     startActivity(i);
                 } catch (Exception e) {
-                    Toast.makeText(SbiActivity.this, "No app found to open this", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(SbiActivity.this, "No UPI app found to open this", Toast.LENGTH_SHORT).show();
                 }
                 return true;
             }
 
             @Override
             public void onPageStarted(WebView v, String url, android.graphics.Bitmap f) {
+                host = hostOf(url);
                 v.evaluateJavascript(HOOK, null);
             }
 
             @Override
             public void onPageFinished(WebView v, String url) {
+                host = hostOf(url);
                 v.evaluateJavascript(HOOK, null);
+                if (amt > 0 && !driver.isEmpty()) v.evaluateJavascript(params() + driver, null);
             }
         });
         web.loadUrl(SITE);
+    }
+
+    static String hostOf(String url) {
+        try { String h = Uri.parse(url).getHost(); return h == null ? "" : h; } catch (Exception e) { return ""; }
+    }
+
+    static String fmt(double a) {
+        return a == Math.floor(a) ? String.valueOf((long) a) : String.format(java.util.Locale.US, "%.2f", a);
+    }
+
+    String params() {
+        StringBuilder d = new StringBuilder("{");
+        synchronized (done) { for (String k : done) d.append(d.length() > 1 ? "," : "").append('"').append(k).append("\":1"); }
+        d.append('}');
+        return "window.__KP={amt:" + fmt(amt) + ",last4:" + org.json.JSONObject.quote(last4 == null ? "" : last4) + ",done:" + d + "};";
+    }
+
+    void setStep(String text, String step) {
+        statusV.setText(text);
+        int n = "3".equals(step) ? 3 : "2".equals(step) || "card".equals(step) ? 2 : "ok".equals(step) ? 3 : 1;
+        for (int i = 0; i < 3; i++)
+            seg[i].setBackgroundColor(Color.parseColor(i < n ? "#5EEAB4" : "#2C3A35"));
+        if ("card".equals(step)) {
+            actB.setText("It's the right card – continue");
+            actB.setVisibility(View.VISIBLE);
+            actB.setOnClickListener(v -> {
+                synchronized (done) { done.add("cardok"); }
+                actB.setVisibility(View.GONE);
+                web.evaluateJavascript("if(window.__KP){window.__KP.done.cardok=1;location.hash='#/app/management/topUp'}", null);
+            });
+        } else if ("ok".equals(step)) {
+            actB.setText("Done");
+            actB.setVisibility(View.VISIBLE);
+            actB.setOnClickListener(v -> finish());
+        } else if ("fail".equals(step)) {
+            actB.setText("Close");
+            actB.setVisibility(View.VISIBLE);
+            actB.setOnClickListener(v -> finish());
+        } else {
+            actB.setVisibility(View.GONE);
+        }
+    }
+
+    boolean onSbi() { return host.endsWith("prepaid.sbi.bank.in"); }
+
+    void askSave() {
+        if (askedSave || pendingLogin == null || SbiLogin.has(this)) return;
+        askedSave = true;
+        final String[] l = pendingLogin;
+        pendingLogin = null;
+        new AlertDialog.Builder(this)
+                .setTitle("Save SBI login in Kharcha?")
+                .setMessage("Your User ID and password stay on this phone, encrypted. Kharcha fills them next time; you still type the captcha and OTP.")
+                .setPositiveButton("Save", (d, w) -> {
+                    if (SbiLogin.save(this, l[0], l[1])) Toast.makeText(this, "Login saved", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Not now", null)
+                .show();
     }
 
     Button btn(String text, String bg, String fg) {
@@ -172,6 +312,58 @@ public class SbiActivity extends Activity {
                 cap.add(json);
             }
             runOnUiThread(() -> copyB.setText("Copy for Claude (" + cap.size() + ")"));
+        }
+
+        /** the driver did a step; remembered across page loads so nothing is clicked twice */
+        @JavascriptInterface
+        public void did(String k) { synchronized (done) { done.add(k); } }
+
+        @JavascriptInterface
+        public void status(String text, String step) {
+            if (amt > 0) runOnUiThread(() -> setStep(text, step));
+        }
+
+        /** saved login, only ever handed to the SBI Prepaid page itself */
+        @JavascriptInterface
+        public String creds() {
+            if (!onSbi()) return null;
+            String[] l = SbiLogin.load(SbiActivity.this);
+            if (l == null) return null;
+            try {
+                return new org.json.JSONObject().put("u", l[0]).put("p", l[1]).toString();
+            } catch (Exception e) { return null; }
+        }
+
+        @JavascriptInterface
+        public void offerLogin(String u, String p) {
+            if (!onSbi() || SbiLogin.has(SbiActivity.this)) return;
+            pendingLogin = new String[]{u, p};
+        }
+
+        /** the OTP page appeared, so the ID and password were right: offer to save them */
+        @JavascriptInterface
+        public void reached(String where) {
+            if ("otp".equals(where)) runOnUiThread(() -> askSave());
+        }
+
+        @JavascriptInterface
+        public void keyboard() {
+            runOnUiThread(() -> {
+                InputMethodManager im = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                web.requestFocus();
+                im.showSoftInput(web, InputMethodManager.SHOW_IMPLICIT);
+            });
+        }
+
+        @JavascriptInterface
+        public void finished(String result) {
+            if (amt <= 0) return;
+            runOnUiThread(() -> {
+                if ("ok".equals(result))
+                    setStep("✓ Top-up of ₹" + fmt(amt) + " paid. Tap the card at a metro gate to load it onto the chip.", "ok");
+                else
+                    setStep("The payment didn't go through. Nothing more will be clicked.", "fail");
+            });
         }
     }
 

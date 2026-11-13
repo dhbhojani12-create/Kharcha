@@ -186,6 +186,19 @@ html[data-theme="dark"] .ccard.on{background:#17201d;border:1px solid #26302c}
 .cjd{font-size:12px;font-weight:600;color:var(--mut);margin-top:12px;text-transform:uppercase;letter-spacing:.6px}
 .jrow .t small.ok{color:var(--okink)}
 .jrow b.g{font-size:17px}
+.tlab{font-size:12px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;margin-top:14px}
+.tcards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.tcard{height:80px;border-radius:18px;background:var(--card2);color:var(--ink);padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;text-align:left}
+.tcard span{font-size:12.5px;font-weight:600;color:var(--mut)}
+.tcard b{font-size:21px}
+.tcard.on{background:#0e1513;color:#fff}.tcard.on span{color:#a9b8b2}
+.tchips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tchips button{height:44px;border-radius:14px;background:var(--card2);font-weight:600;color:var(--ink)}
+.tchips button.on{background:#0e1513;color:#fff}
+.tsteps{background:var(--card2);border-radius:16px;padding:12px 14px;margin-top:14px;display:flex;flex-direction:column;gap:9px;font-size:13.5px}
+.tsteps div{display:flex;gap:10px;align-items:center}
+.tsteps i{font-style:normal;flex:0 0 22px;height:22px;border-radius:11px;background:#0e1513;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.tsteps i.a{background:var(--accent);color:#0e1513}
 .jrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
 .jrow:last-child{border-bottom:0}
 .jrow .t{flex:1;min-width:0}
@@ -572,7 +585,7 @@ function vCard(){
   ${cards.length>1?`<div class="cdots" aria-hidden="true">${cards.map(c=>`<i${c.id===selCard?' class="on"':''}></i>`).join('')}</div>`:''}
   <div class="cact"><button class="btn" id="refB"${can?'':' disabled'}><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Refresh</button>
     <button class="btn" data-top="${esc(selCard)}"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>I topped up</button></div>
-  ${APP&&APP.openSbi?`<button class="btn" id="sbiB" style="height:44px;font-size:14px;margin-top:10px">Top up on SBI Prepaid ›</button>`:''}
+  ${APP&&APP.openSbi?`<button class="btn" id="sbiB" style="height:44px;font-size:14px;margin-top:10px">Top up on SBI ›</button>`:''}
   <div id="cDetail">${cardDetail(cur)}</div>
   <div class="small muted" style="text-align:center;margin-top:10px">Read only. Kharcha can never change your balance.</div>`:
   (can?`<div class="tapbox ${cardsBusy?'live':''}" id="tapBox" style="margin-top:14px">
@@ -584,7 +597,7 @@ function vCard(){
   const tb=$('#tapBox');if(tb&&!cardsBusy)tb.onclick=tapCard;
   const nb=$('#tapB');if(nb&&!cardsBusy)nb.onclick=tapCard;
   const rf=$('#refB');if(rf&&!cardsBusy)rf.onclick=tapCard;
-  const sb=$('#sbiB');if(sb)sb.onclick=()=>{try{APP.openSbi()}catch(e){toast('Update the Kharcha app')}};
+  const sb=$('#sbiB');if(sb)sb.onclick=()=>{if(APP.sbiTopup)topupSheet();else try{APP.openSbi()}catch(e){toast('Update the Kharcha app')}};
   const strip=$('#cStrip');
   if(strip){
     const idx=cards.findIndex(c=>c.id===selCard);
@@ -615,6 +628,36 @@ function fitJourneys(){
   l.style.maxHeight=Math.max(150,Math.round(room))+'px';
 }
 addEventListener('resize',()=>{if(tab==='card')fitJourneys()});
+/* top-up on SBI Prepaid: pick card + amount here, Kharcha does the clicking on the site */
+function topupSheet(){
+  const cards=cardList().filter(c=>c.pan);
+  let pick=(cards.find(c=>c.id===selCard)||cards[0]||{}).id,amt=200;
+  const saved=APP.sbiHasLogin&&APP.sbiHasLogin();
+  openSheet(`<h3>Top up</h3>
+  <div class="tlab">Card</div>
+  <div class="tcards">${cards.map(c=>`<button class="tcard" data-c="${esc(c.id)}"><span>${esc(cardName(c))} · ···· ${esc(c.pan.slice(-4))}</span><b class="g">${c.balance!=null?inr(c.balance):'—'}</b></button>`).join('')||'<div class="small muted">Tap a card on your phone first so Kharcha knows it.</div>'}</div>
+  <div class="tlab">Amount</div>
+  <div class="amt" style="margin:4px 0"><span>₹</span><input id="tuA" inputmode="decimal" value="200" aria-label="Top-up amount"></div>
+  <div class="tchips">${[100,200,500,1000].map(a=>`<button data-a="${a}">₹${a}</button>`).join('')}</div>
+  <div class="tsteps"><div><i>1</i>${saved?'Kharcha fills your login – you type the captcha and OTP':'You log in on SBI – ID, password, captcha, OTP'}</div><div><i class="a">2</i><span id="tuS2">Kharcha fills ₹200 and clicks through SBIePay</span></div><div><i>3</i>Your UPI app opens – approve the payment</div></div>
+  ${saved?'<div class="small muted" style="text-align:center;margin-top:8px">SBI login saved on this phone · <a href="#" id="tuF">Forget it</a></div>':''}
+  <button class="btn pri" id="tuGo">Continue to SBI · ₹200</button>`,sh=>{
+    const paint=()=>{
+      sh.querySelectorAll('.tcard').forEach(b=>b.classList.toggle('on',b.dataset.c===pick));
+      sh.querySelectorAll('.tchips button').forEach(b=>b.classList.toggle('on',+b.dataset.a===amt));
+      sh.querySelector('#tuGo').textContent='Continue to SBI · '+(amt?inr(amt):'₹—');
+      sh.querySelector('#tuS2').textContent='Kharcha fills '+(amt?inr(amt):'the amount')+' and clicks through SBIePay'};
+    sh.querySelectorAll('.tcard').forEach(b=>b.onclick=()=>{pick=b.dataset.c;paint()});
+    sh.querySelectorAll('.tchips button').forEach(b=>b.onclick=()=>{amt=+b.dataset.a;sh.querySelector('#tuA').value=amt;paint()});
+    sh.querySelector('#tuA').oninput=e=>{amt=parseAmt(e.target.value)||0;paint()};
+    const f=sh.querySelector('#tuF');if(f)f.onclick=e=>{e.preventDefault();if(confirm('Forget the saved SBI login?')){APP.sbiForget();closeSheet();toast('SBI login removed')}};
+    sh.querySelector('#tuGo').onclick=()=>{
+      const c=cards.find(x=>x.id===pick);
+      if(!c)return toast('Pick a card');
+      if(!(amt>=1))return toast('Enter an amount');
+      closeSheet();APP.sbiTopup(String(amt),c.pan.slice(-4),cardName(c))};
+    paint()});
+}
 function rawSheet(id){
   const c=loadCards().list[id];if(!c)return;
   const dump=JSON.stringify({cardType:c.cardType,aid:c.aid,balance:c.balance,expiry:c.expiry,journeys:realJourneys(c).length,trace:c.trace},null,1);

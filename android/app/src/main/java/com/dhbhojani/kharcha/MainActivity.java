@@ -286,6 +286,23 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void sbiTopup(String amt, String last4, String label) {
+            runOnUiThread(() -> {
+                Intent i = new Intent(MainActivity.this, SbiActivity.class);
+                try { i.putExtra("amt", Double.parseDouble(amt)); } catch (Exception e) { return; }
+                i.putExtra("last4", last4);
+                i.putExtra("label", label);
+                startActivity(i);
+            });
+        }
+
+        @JavascriptInterface
+        public boolean sbiHasLogin() { return SbiLogin.has(MainActivity.this); }
+
+        @JavascriptInterface
+        public void sbiForget() { SbiLogin.forget(MainActivity.this); }
+
+        @JavascriptInterface
         public void openSbi() {
             runOnUiThread(() -> startActivity(new Intent(MainActivity.this, SbiActivity.class)));
         }
