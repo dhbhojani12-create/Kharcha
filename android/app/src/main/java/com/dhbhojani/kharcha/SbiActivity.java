@@ -537,11 +537,26 @@ public class SbiActivity extends Activity {
     /* ---------------- real key presses into the hidden page ---------------- */
     /** tap the field like a finger would (SBI shows the captcha box only after the ID box is tapped), then type */
     void typeField(String which, String val, Runnable next) {
-        web.requestFocus();
+        boolean rf = web.requestFocus();
+        log("focus-view " + which + " requested=" + rf + " hasFocus=" + web.hasFocus());
         tapField(which, () -> web.evaluateJavascript("window.__kFocus?window.__kFocus(" + JSONObject.quote(which) + "):false", r -> {
-            if ("true".equals(r)) typeText(val);
-            web.postDelayed(next, 350);
+            log("focus-field " + which + " -> " + r);
+            typeText(val);
+            web.postDelayed(() -> web.evaluateJavascript("window.__kState(" + JSONObject.quote(which) + ")", st -> {
+                log("after-keys " + which + " " + st + " (want " + val.length() + ")");
+                if (st != null && st.contains("\\\"len\\\":" + val.length())) { web.postDelayed(next, 250); return; }
+                web.evaluateJavascript("window.__kInsert(" + JSONObject.quote(which) + "," + JSONObject.quote(val) + ")", n -> {
+                    log("after-insert " + which + " len=" + n);
+                    web.postDelayed(next, 300);
+                });
+            }), 300);
         }));
+    }
+
+    /** a line in the copyable log (no typed text, only counts and field names) */
+    void log(String m) {
+        try { synchronized (cap) { cap.add(new JSONObject().put("k", "app").put("m", m).put("t", System.currentTimeMillis() % 100000).toString()); } }
+        catch (Exception ignored) { }
     }
 
     void tapField(String which, Runnable then) {
@@ -554,11 +569,12 @@ public class SbiActivity extends Activity {
                 long t = SystemClock.uptimeMillis();
                 MotionEvent down = MotionEvent.obtain(t, t, MotionEvent.ACTION_DOWN, x, y, 0);
                 MotionEvent up = MotionEvent.obtain(t, t + 60, MotionEvent.ACTION_UP, x, y, 0);
-                web.dispatchTouchEvent(down);
-                web.dispatchTouchEvent(up);
+                boolean a = web.dispatchTouchEvent(down);
+                boolean b2 = web.dispatchTouchEvent(up);
+                log("tap " + which + " at " + Math.round(x) + "," + Math.round(y) + " handled=" + a + "/" + b2);
                 down.recycle();
                 up.recycle();
-            } catch (Exception ignored) { }
+            } catch (Exception e) { log("tap " + which + " failed: " + r); }
             web.postDelayed(then, 450);
         });
     }
@@ -579,6 +595,7 @@ public class SbiActivity extends Activity {
         if (!"checking".equals(state)) return; // a new captcha arrived meanwhile: the user types that one
         web.evaluateJavascript("window.__kCapBox?window.__kCapBox():false", r -> {
             if (!"checking".equals(state)) return;
+            if (n % 5 == 0) log("captcha-box check " + n + " -> " + r);
             if ("true".equals(r)) {
                 typeField("captcha", c, () -> web.evaluateJavascript("window.__kContinue()", null));
             } else if (n < 25) {

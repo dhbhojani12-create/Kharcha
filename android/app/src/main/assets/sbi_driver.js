@@ -87,6 +87,21 @@
     try { el.click(); } catch (e) { }
     return JSON.stringify({ x: (r.left + r.width / 2) * d, y: (r.top + r.height / 2) * d });
   };
+  window.__kVal = function (which) { var el = field(which); return el ? String(el.value.length) : '-1'; };
+  window.__kState = function (which) {
+    var el = field(which), a = document.activeElement;
+    return JSON.stringify({ found: !!el, len: el ? el.value.length : -1, active: a ? (a.name || a.tagName) : '', hasFocus: document.hasFocus() });
+  };
+  /* second way to enter text: the browser's own insert command (counts as real typing) */
+  window.__kInsert = function (which, v) {
+    var el = field(which);
+    if (!el) return '-1';
+    el.focus();
+    try { el.select(); } catch (e) { }
+    document.execCommand('insertText', false, v);
+    el.dispatchEvent(new KeyboardEvent('keyup', { key: v.slice(-1), bubbles: true }));
+    return String(el.value.length);
+  };
   window.__kCapBox = function () { return !!capInput(); };
   window.__kOtpBoxes = function () { var n = 0; for (var i = 1; i <= 6; i++) if (field('otp' + i)) n++; return n; };
   window.__kContinue = function () {
