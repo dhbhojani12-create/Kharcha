@@ -95,7 +95,19 @@ public class Popup {
     }
 
     static void show(Context c, String text, long ts, OnLater onLater, int winType) {
+        show(c, text, ts, onLater, winType, false, null);
+    }
+
+    /** Called whenever the pop-up goes away (used by the widget's cash screen to close itself). */
+    static Runnable onClosed;
+
+    /** cash = opened from the home-screen widget: no payment behind it, so ask for amount + where, saved as Cash. */
+    static void show(Context c, String text, long ts, OnLater onLater, int winType, boolean cash, Runnable closed) {
         theme(c);
+        Runnable prev = onClosed;
+        onClosed = null;
+        if (prev != null) prev.run();
+        onClosed = closed;
         WindowManager wm = (WindowManager) c.getSystemService(Context.WINDOW_SERVICE);
         if (showing != null) {
             try { wm.removeView(showing); } catch (Exception ignored) { }
@@ -132,9 +144,9 @@ public class Popup {
         LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(dp(c, 22), dp(c, 22));
         mlp.rightMargin = dp(c, 8);
         head.addView(mark, mlp);
-        head.addView(label(c, "Kharcha · just paid", 12.5f, MUT, true),
+        head.addView(label(c, cash ? "Kharcha · cash spent" : "Kharcha · just paid", 12.5f, MUT, true),
                 new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-        TextView ignore = label(c, "Not an expense", 12, RED, true);
+        TextView ignore = label(c, cash ? "Cancel" : "Not an expense", 12, RED, true);
         ignore.setBackground(box(c, REDBG, 0, 10, 0));
         ignore.setPadding(dp(c, 10), dp(c, 7), dp(c, 10), dp(c, 7));
         head.addView(ignore);
@@ -169,10 +181,10 @@ public class Popup {
         pbox.setOrientation(LinearLayout.VERTICAL);
         pbox.setBackground(box(c, FIELD, 0, 13, 0));
         pbox.setPadding(dp(c, 12), dp(c, 7), dp(c, 12), dp(c, 7));
-        pbox.addView(label(c, "Paid to", 10.5f, MUT, false));
+        pbox.addView(label(c, cash ? "Spent at" : "Paid to", 10.5f, MUT, false));
         EditText payeeE = new EditText(c);
         payeeE.setText(payee);
-        payeeE.setHint("Who?");
+        payeeE.setHint(cash ? "Where?" : "Who?");
         payeeE.setTextSize(14);
         payeeE.setSingleLine(true);
         payeeE.setTypeface(Typeface.DEFAULT_BOLD);
@@ -250,7 +262,7 @@ public class Popup {
         TextView save = button(c, "Save", true);
         LinearLayout.LayoutParams l1 = new LinearLayout.LayoutParams(0, dp(c, 50), 1);
         l1.rightMargin = dp(c, 8);
-        btns.addView(later, l1);
+        if (!cash) btns.addView(later, l1);
         btns.addView(save, new LinearLayout.LayoutParams(0, dp(c, 50), 2));
 
         WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
@@ -260,12 +272,14 @@ public class Popup {
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
                 PixelFormat.TRANSLUCENT);
         lp.gravity = Gravity.BOTTOM;
-        lp.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE | WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN;
+        lp.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                | (cash ? WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE : WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
+        if (cash) amtE.requestFocus();
 
         ignore.setOnClickListener(v -> {
             close(wm, root);
-            if (ts >= 0) PayListener.remove(c, ts);
-            Toast.makeText(c, "Skipped", Toast.LENGTH_SHORT).show();
+            if (ts >= 0 && !cash) PayListener.remove(c, ts);
+            if (!cash) Toast.makeText(c, "Skipped", Toast.LENGTH_SHORT).show();
         });
         later.setOnClickListener(v -> {
             close(wm, root);
@@ -277,7 +291,7 @@ public class Popup {
             if (sel[0].isEmpty()) { Toast.makeText(c, "Tap a category", Toast.LENGTH_SHORT).show(); return; }
             if (ts < 0) { close(wm, root); Toast.makeText(c, "Pop-up works ✓ (test not saved)", Toast.LENGTH_SHORT).show(); return; }
             String py = payeeE.getText().toString().trim();
-            PayListener.markDone(c, ts, a, py, sel[0], note.getText().toString().trim());
+            PayListener.markDone(c, ts, a, py, sel[0], note.getText().toString().trim(), cash ? "Cash" : "UPI");
             try {
                 JSONObject r = new JSONObject(p.getString("rules", "{}"));
                 if (!py.isEmpty()) r.put(Parse.key(py), sel[0]);
@@ -300,6 +314,9 @@ public class Popup {
     static void close(WindowManager wm, View v) {
         try { wm.removeView(v); } catch (Exception ignored) { }
         if (showing == v) { showing = null; curAmt = null; }
+        Runnable r = onClosed;
+        onClosed = null;
+        if (r != null) r.run();
     }
 
     static void paint(Context c, TextView t, boolean on) {

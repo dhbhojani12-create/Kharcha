@@ -274,6 +274,13 @@ public class MainActivity extends Activity {
             getSharedPreferences("k", MODE_PRIVATE).edit().putString("rules", json).apply();
         }
 
+        /** compact list of travel cards for the home-screen widget: [{name,last4,balance,readAt}] */
+        @JavascriptInterface
+        public void setCards(String json) {
+            getSharedPreferences("k", MODE_PRIVATE).edit().putString("cards", json).apply();
+            KharchaWidget.refresh(MainActivity.this);
+        }
+
         @JavascriptInterface
         public boolean hasNfc() {
             NfcAdapter a = NfcAdapter.getDefaultAdapter(MainActivity.this);

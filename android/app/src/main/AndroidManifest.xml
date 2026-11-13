@@ -61,6 +61,26 @@
                 android:resource="@xml/kharcha_access" />
         </service>
 
+        <activity
+            android:name=".CashActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.dhbhojani.kharcha.cash"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:windowSoftInputMode="adjustResize|stateVisible" />
+
+        <receiver
+            android:name=".KharchaWidget"
+            android:exported="false"
+            android:label="Kharcha">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/kharcha_widget" />
+        </receiver>
+
         <provider
             android:name=".FilesProvider"
             android:authorities="com.dhbhojani.kharcha.files"

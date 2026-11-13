@@ -199,16 +199,20 @@ public class PayListener extends NotificationListenerService {
         p.edit().putString("q", a.toString()).apply();
     }
 
-    static synchronized void markDone(Context c, long ts, double amt, String payee, String cat, String note) {
+    static void markDone(Context c, long ts, double amt, String payee, String cat, String note) {
+        markDone(c, ts, amt, payee, cat, note, "UPI");
+    }
+
+    static synchronized void markDone(Context c, long ts, double amt, String payee, String cat, String note, String mode) {
         SharedPreferences p = c.getSharedPreferences("k", MODE_PRIVATE);
         try {
             JSONArray a = new JSONArray(p.getString("q", "[]"));
             boolean found = false;
             for (int i = 0; i < a.length(); i++) {
                 JSONObject o = a.getJSONObject(i);
-                if (o.optLong("ts") == ts) { found = true; fill(o, amt, payee, cat, note); }
+                if (o.optLong("ts") == ts) { found = true; fill(o, amt, payee, cat, note); o.put("mode", mode); }
             }
-            if (!found) { JSONObject o = new JSONObject(); o.put("ts", ts); o.put("t", ""); fill(o, amt, payee, cat, note); a.put(o); }
+            if (!found) { JSONObject o = new JSONObject(); o.put("ts", ts); o.put("t", ""); fill(o, amt, payee, cat, note); o.put("mode", mode); a.put(o); }
             p.edit().putString("q", a.toString()).apply();
         } catch (Exception ignored) { }
         NotificationManager nm = c.getSystemService(NotificationManager.class);

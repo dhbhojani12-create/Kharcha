@@ -344,7 +344,7 @@ let Q=[];
 function importDone(it){
   const c=S.cats.some(x=>x.id===it.cat)?it.cat:'other';
   if(S.expenses.some(e=>e.src==='auto'&&e.ts===it.ts))return;
-  S.expenses.push({id:uid(),amt:it.amt,cat:c,payee:it.payee||'',note:it.note||'',mode:'UPI',ts:it.ts,src:'auto'});
+  S.expenses.push({id:uid(),amt:it.amt,cat:c,payee:it.payee||'',note:it.note||'',mode:it.mode||'UPI',ts:it.ts,src:'auto'});
   learn(it.payee,c);
 }
 function parseCapture(t){t=String(t||'');const m=t.match(/₹\s*([\d,]+(?:\.\d{1,2})?)/);const p=t.match(/ to (.+?)\.?$/m);return{amt:m?parseAmt(m[1]):0,payee:p?p[1].trim():''}}
@@ -449,7 +449,11 @@ function loadCards(){try{const c=JSON.parse(localStorage.getItem(CARDK));if(c&&c
   try{const o=JSON.parse(localStorage.getItem('kharcha.card'));
     if(o&&o.balance!=null){const id=o.pan||'card';return{list:{[id]:{...o,id,topups:[]}}}}}catch(e){}
   return{list:{}}}
-function saveCards(c){try{localStorage.setItem(CARDK,JSON.stringify(c))}catch(e){}}
+function saveCards(c){try{localStorage.setItem(CARDK,JSON.stringify(c))}catch(e){}syncCardsNative(c)}
+/* home-screen widget shows the last read balance of each card */
+function syncCardsNative(c){if(!(APP&&APP.setCards))return;try{c=c||loadCards();
+  const l=Object.values(c.list).sort((a,b)=>(b.readAt||0)-(a.readAt||0)).map(x=>({name:cardName(x),last4:String(x.pan||'').slice(-4),balance:x.balance!=null?x.balance:null,readAt:x.readAt||0}));
+  APP.setCards(JSON.stringify(l))}catch(e){}}
 const cardList=()=>Object.values(loadCards().list).sort((a,b)=>(b.readAt||0)-(a.readAt||0));
 const jkey=j=>j.v===2?'v2-'+j.seq+'-'+j.ts:[j.seq,j.mins,j.term,j.op].join('-');
 const realJourneys=c=>(c.journeys||[]).filter(j=>j.v===2); // older builds misread the log; ignore those
@@ -852,6 +856,8 @@ const qa=new URLSearchParams(location.search).get('a');
 if(qa==='cash')addSheet({mode:'Cash'});
 else if(qa==='add')addSheet();
 else if(qa==='month'){tab='reports';month=ym(Date.now());render()}
+else if(qa==='card'){tab='card';render()}
+try{syncCardsNative()}catch(e){}
 if(location.search)history.replaceState(null,'',location.pathname);
 if(APP){syncNative();setTimeout(()=>window.kharchaPoll(),500);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(()=>{window.kharchaPoll();render()},300)})}

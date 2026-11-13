@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="kh_teal">#0F766E</color>
+    <color name="w_bg">#FFFFFF</color>
+    <color name="w_ink">#0E1513</color>
+    <color name="w_mut">#5B6461</color>
+    <color name="w_soft">#F3F5F4</color>
+    <color name="w_bal">#0B6B47</color>
+    <color name="w_btn">#0F766E</color>
+    <color name="w_on_btn">#FFFFFF</color>
 </resources>

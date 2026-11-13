@@ -7,4 +7,5 @@
     <string name="sc_add_long">Add expense</string>
     <string name="sc_month_short">This month</string>
     <string name="sc_month_long">This month</string>
+    <string name="w_desc">Travel card balances and a quick cash button</string>
 </resources>
