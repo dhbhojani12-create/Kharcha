@@ -8,6 +8,9 @@ import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkCapabilities;
 import android.net.Uri;
+import android.nfc.NfcAdapter;
+import android.nfc.Tag;
+import android.nfc.tech.IsoDep;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -34,6 +37,8 @@ public class MainActivity extends Activity {
     ValueCallback<Uri[]> fileCb;
     Uri cameraUri;
     PermissionRequest pendingPerm;
+    NfcAdapter nfc;
+    boolean nfcOn;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -126,6 +131,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (web != null) web.evaluateJavascript("window.kharchaPoll&&kharchaPoll()", null);
+        if (nfcOn) nfcStart();
     }
 
     boolean online() {
@@ -169,6 +175,45 @@ public class MainActivity extends Activity {
                 v -> { if ("0".equals(v)) finish(); });
     }
 
+    /** Start listening for a tapped transit card; results go to the page via kharchaCard(). */
+    void nfcStart() {
+        if (nfc == null) nfc = NfcAdapter.getDefaultAdapter(this);
+        if (nfc == null) { toJs("{\"error\":\"This phone has no NFC\"}"); return; }
+        if (!nfc.isEnabled()) { toJs("{\"error\":\"NFC is switched off – turn it on in Settings\"}"); return; }
+        nfcOn = true;
+        nfc.enableReaderMode(this, tag -> {
+            IsoDep iso = IsoDep.get(tag);
+            if (iso == null) { toJs("{\"error\":\"That card is not a payment / NCMC card\"}"); return; }
+            try {
+                toJs(NcmcCard.read(iso).toString());
+            } catch (Exception e) {
+                String m = e.getMessage() == null ? e.toString() : e.getMessage();
+                try {
+                    org.json.JSONObject o = new org.json.JSONObject();
+                    o.put("error", m);
+                    toJs(o.toString());
+                } catch (Exception ignored) { }
+            }
+        }, NfcAdapter.FLAG_READER_NFC_A | NfcAdapter.FLAG_READER_NFC_B
+                | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK | NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS, null);
+    }
+
+    void nfcStop() {
+        nfcOn = false;
+        try { if (nfc != null) nfc.disableReaderMode(this); } catch (Exception ignored) { }
+    }
+
+    void toJs(String json) {
+        final String js = "window.kharchaCard && kharchaCard(" + json + ")";
+        runOnUiThread(() -> { if (web != null) web.evaluateJavascript(js, null); });
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (nfcOn) try { if (nfc != null) nfc.disableReaderMode(this); } catch (Exception ignored) { }
+    }
+
     void toast(String m) {
         runOnUiThread(() -> Toast.makeText(this, m, Toast.LENGTH_SHORT).show());
     }
@@ -187,7 +232,7 @@ public class MainActivity extends Activity {
     class Bridge {
         @JavascriptInterface
         public String version() {
-            return "6";
+            return "7";
         }
 
         @JavascriptInterface
@@ -227,6 +272,22 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void setRules(String json) {
             getSharedPreferences("k", MODE_PRIVATE).edit().putString("rules", json).apply();
+        }
+
+        @JavascriptInterface
+        public boolean hasNfc() {
+            NfcAdapter a = NfcAdapter.getDefaultAdapter(MainActivity.this);
+            return a != null && a.isEnabled();
+        }
+
+        @JavascriptInterface
+        public void readCard() {
+            runOnUiThread(() -> nfcStart());
+        }
+
+        @JavascriptInterface
+        public void stopCard() {
+            runOnUiThread(() -> nfcStop());
         }
 
         @JavascriptInterface
