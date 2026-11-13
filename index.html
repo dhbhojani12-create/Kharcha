@@ -176,7 +176,7 @@ html[data-theme="dark"] .balcard{background:#17201d;border:1px solid #26302c}
 <div id="ov" class="ov hidden"><div class="sheet" id="sheet"></div></div>
 
 <script>
-const VERSION='5.1';
+const VERSION='5.2';
 const APP=window.KharchaApp||null;
 const POOLDRIVE='io.github.dhbhojani12.pooldrive';
 
@@ -415,6 +415,7 @@ window.kharchaCard=function(res){
   res.readAt=Date.now();
   res.known=prev.known||{};
   if(prev.balance!=null&&res.balance!=null&&prev.readAt)res.prevBalance=prev.balance;
+  if(Array.isArray(res.journeys)){const seen={};res.journeys=res.journeys.filter(j=>{const k=jkey(j);if(seen[k])return false;seen[k]=1;return true}).sort((a,b)=>(b.ts||b.mins)-(a.ts||a.mins))}
   cardState=res;saveCard(res);
   if(APP&&APP.stopCard)try{APP.stopCard()}catch(e){}
   render();
@@ -466,9 +467,15 @@ function vCard(){
   ${c&&c.trace?`<button class="btn" id="rawB">Show what the card sent</button>`:''}`;
   const tb=$('#tapBox');if(tb&&!cardBusy)tb.onclick=tapCard;
   const ij=$('#impJ');if(ij)ij.onclick=importJourneys;
-  const rb=$('#rawB');if(rb)rb.onclick=()=>openSheet(`<h3>Card response</h3><div class="small muted">Send this to Claude if something looks wrong.</div>
-    <div class="mitem" style="word-break:break-all;font-size:11.5px;font-family:monospace">${esc(JSON.stringify({cardType:c.cardType,aid:c.aid,balance:c.balance,language:c.language,expiry:c.expiry,journeys:(c.journeys||[]).length,trace:c.trace}))}</div>
-    <button class="btn pri" id="rOk">Close</button>`,sh=>{sh.querySelector('#rOk').onclick=closeSheet});
+  const rb=$('#rawB');if(rb)rb.onclick=()=>{
+    const dump=JSON.stringify({cardType:c.cardType,aid:c.aid,balance:c.balance,language:c.language,expiry:c.expiry,n:(c.journeys||[]).length,trace:c.trace},null,1);
+    openSheet(`<h3>Card response</h3><div class="small muted">Tap Copy, then paste it to Claude.</div>
+    <div class="mitem" style="word-break:break-all;font-size:11px;font-family:monospace;max-height:46vh;overflow:auto">${esc(dump)}</div>
+    <button class="btn pri" id="rCopy">Copy</button><button class="btn" id="rOk">Close</button>`,sh=>{
+      sh.querySelector('#rCopy').onclick=()=>{
+        try{navigator.clipboard.writeText(dump);toast('Copied ✓')}
+        catch(e){const t=document.createElement('textarea');t.value=dump;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('Copied ✓')}};
+      sh.querySelector('#rOk').onclick=closeSheet})};
 }
 
 /* ---------- export ---------- */

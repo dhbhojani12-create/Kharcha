@@ -167,13 +167,24 @@ public class NcmcCard {
             r = iso.transceive(apdu(0x80, 0xA8, 0x00, 0x00, cmd, 0x00));
             if ((sw(r) & 0xFF00) == 0x6C00) r = iso.transceive(apdu(0x80, 0xA8, 0x00, 0x00, cmd, r[r.length - 1] & 0xFF));
             trace.put("GPO -> " + String.format("%04X", sw(r)) + " " + hx(body(r)));
+            byte[] df = null;
+            byte[] afl = null;
             if (sw(r) == 0x9000) {
-                List<byte[]> df33 = findTag(body(r), 0xDF33);
-                if (!df33.isEmpty() && df33.get(0).length >= 29) {
-                    try {
-                        String bcd = hx(Arrays.copyOfRange(df33.get(0), 23, 29));
-                        out.put("balance", Long.parseLong(bcd) / 100.0);
-                    } catch (Exception ignored) { }
+                byte[] gpo = body(r);
+                List<byte[]> df33 = findTag(gpo, 0xDF33);
+                if (!df33.isEmpty()) {
+                    df = df33.get(0);
+                    trace.put("DF33(" + df.length + ") " + hx(df));
+                    if (df.length >= 29) {
+                        try {
+                            out.put("balance", Long.parseLong(hx(Arrays.copyOfRange(df, 23, 29))) / 100.0);
+                        } catch (Exception ignored) { }
+                    }
+                }
+                List<byte[]> aflList = findTag(gpo, 0x94);
+                if (!aflList.isEmpty()) {
+                    afl = aflList.get(0);
+                    trace.put("AFL " + hx(afl));
                 }
             }
 
@@ -198,17 +209,46 @@ public class NcmcCard {
                 }
             }
 
-            // 5. journeys: SFI 16
+            // 5. journeys. Read where the card's own directory (AFL) says its records are,
+            //    then the log SFI, then DF33 itself. Everything is dumped so an unknown
+            //    layout can be worked out from one tap.
             JSONArray journeys = new JSONArray();
+            List<byte[]> blobs = new ArrayList<>();
+
+            if (afl != null) {
+                for (int k = 0; k + 3 < afl.length; k += 4) {
+                    int sfi = (afl[k] & 0xFF) >> 3;
+                    int first = afl[k + 1] & 0xFF, last = afl[k + 2] & 0xFF;
+                    if (sfi == 0 || first == 0 || last < first || last - first > 16) continue;
+                    for (int rec = first; rec <= last; rec++) {
+                        byte[] d = readRecord(iso, sfi, rec);
+                        if (d == null) continue;
+                        trace.put("SFI" + sfi + "/" + rec + "(" + d.length + ") " + hx(d));
+                        blobs.add(d);
+                    }
+                }
+            }
             for (int rec = 1; rec <= LOG_RECORDS; rec++) {
                 byte[] d = readRecord(iso, LOG_SFI, rec);
-                if (d == null) continue;
-                byte[] csa = d;
-                if (csa.length != 96) {
-                    List<Tlv> t = parseTlv(d);
-                    for (Tlv x : t) if (x.value.length == 96) csa = x.value;
+                if (d == null) break;
+                trace.put("SFI16/" + rec + "(" + d.length + ") " + hx(d));
+                blobs.add(d);
+            }
+            if (df != null) blobs.add(df);
+
+            // any 96-byte stretch is a Common Service Area: 1 validation + 4 journeys
+            List<byte[]> csas = new ArrayList<>();
+            for (byte[] d : blobs) {
+                if (d.length == 96) { csas.add(d); continue; }
+                for (Tlv t : parseTlv(d)) if (t.value.length == 96) csas.add(t.value);
+                if (d.length > 96) {
+                    csas.add(Arrays.copyOfRange(d, d.length - 96, d.length));
+                    if (d.length >= 128) csas.add(Arrays.copyOfRange(d, 32, 128));
                 }
-                if (csa.length != 96) continue;
+            }
+            int recNo = 0;
+            for (byte[] csa : csas) {
+                recNo++;
                 if (!out.has("language")) {
                     int lang = (csa[1] >> 3) & 0x1F;
                     if (lang < LANGS.length) out.put("language", LANGS[lang]);
@@ -224,7 +264,8 @@ public class NcmcCard {
                     long bs = ((long) (csa[o + 13] & 0xFF) << 16) | ((csa[o + 14] & 0xFF) << 8) | (csa[o + 15] & 0xFF);
                     double balBefore = ((bs >> 4) & 0xFFFFF) / 10.0;
                     int st = (int) (bs & 0x0F);
-                    if (mins <= 0 && seq <= 0 && term <= 0) continue;
+                    // a real journey has a time, a sequence number and a sane amount
+                    if (mins <= 0 || seq <= 0 || amt > 10000 || balBefore > 100000) continue;
                     JSONObject j = new JSONObject();
                     j.put("seq", seq);
                     j.put("mins", mins);
