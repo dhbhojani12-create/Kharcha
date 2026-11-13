@@ -176,7 +176,7 @@ html[data-theme="dark"] .balcard{background:#17201d;border:1px solid #26302c}
 <div id="ov" class="ov hidden"><div class="sheet" id="sheet"></div></div>
 
 <script>
-const VERSION='5.2';
+const VERSION='5.3';
 const APP=window.KharchaApp||null;
 const POOLDRIVE='io.github.dhbhojani12.pooldrive';
 
@@ -397,77 +397,145 @@ function vReports(){
 }
 
 /* ---------- travel card (NFC) ---------- */
-const CARDK='kharcha.card';
-let cardState=null,cardBusy=false;
-const loadCard=()=>{try{return JSON.parse(localStorage.getItem(CARDK))||null}catch(e){return null}};
-const saveCard=c=>{try{localStorage.setItem(CARDK,JSON.stringify(c))}catch(e){}};
+/* Each card is kept on its own, keyed by its number. Spending between taps is
+   worked out as: previous balance + top-ups recorded since then - balance now. */
+const CARDK='kharcha.cards';
+let cardsBusy=false,cardErr=null,selCard=null;
+function loadCards(){try{const c=JSON.parse(localStorage.getItem(CARDK));if(c&&c.list)return c}catch(e){}
+  // carry over a card saved by the first version
+  try{const o=JSON.parse(localStorage.getItem('kharcha.card'));
+    if(o&&o.balance!=null){const id=o.pan||'card';return{list:{[id]:{...o,id,topups:[]}}}}}catch(e){}
+  return{list:{}}}
+function saveCards(c){try{localStorage.setItem(CARDK,JSON.stringify(c))}catch(e){}}
+const cardList=()=>Object.values(loadCards().list).sort((a,b)=>(b.readAt||0)-(a.readAt||0));
 const jkey=j=>[j.seq,j.mins,j.term,j.op].join('-');
-function journeyRows(js,known){
-  return js.map(j=>{const got=known&&known[jkey(j)];
-    const when=j.ts?dayLabel(j.ts)+' '+tm(j.ts):j.mins+' min';
-    const where=(j.status==='Entry'?'Entry':j.status==='Exit'?'Exit':j.status)+' · terminal '+j.term;
-    return `<div class="jrow"><div class="t"><b>${esc(when)}</b><small>${esc(where)}${got?' · logged':''}</small></div><b>${j.amt>0?inr(j.amt):'—'}</b></div>`}).join('')
+const cardName=c=>c.name||c.cardType||'Travel card';
+
+/** spent since the previous tap, allowing for top-ups the user recorded */
+function spendInfo(c){
+  if(c.prevBalance==null||c.balance==null)return null;
+  const tops=(c.topups||[]).filter(t=>t.ts>(c.prevReadAt||0)&&t.ts<=(c.readAt||Date.now()));
+  const topped=tops.reduce((s,t)=>s+t.amt,0);
+  const spent=Math.round((c.prevBalance+topped-c.balance)*100)/100;
+  return{spent,topped,unexplained:spent<-0.005};
 }
+
 window.kharchaCard=function(res){
-  cardBusy=false;
-  if(!res||res.error){cardState={error:(res&&res.error)||'Could not read the card'};render();return}
-  const prev=loadCard()||{};
-  res.readAt=Date.now();
-  res.known=prev.known||{};
-  if(prev.balance!=null&&res.balance!=null&&prev.readAt)res.prevBalance=prev.balance;
+  cardsBusy=false;
+  if(!res||res.error){cardErr=(res&&res.error)||'Could not read the card';render();return}
+  cardErr=null;
+  const store=loadCards();
+  const id=res.pan||res.aid||'card';
+  const prev=store.list[id]||{};
   if(Array.isArray(res.journeys)){const seen={};res.journeys=res.journeys.filter(j=>{const k=jkey(j);if(seen[k])return false;seen[k]=1;return true}).sort((a,b)=>(b.ts||b.mins)-(a.ts||a.mins))}
-  cardState=res;saveCard(res);
+  const c={...prev,...res,id,
+    name:prev.name,
+    topups:prev.topups||[],
+    known:prev.known||{},
+    readAt:Date.now(),
+    prevBalance:(prev.balance!=null?prev.balance:null),
+    prevReadAt:(prev.readAt||null)};
+  store.list[id]=c;saveCards(store);selCard=id;
   if(APP&&APP.stopCard)try{APP.stopCard()}catch(e){}
   render();
 };
 function tapCard(){
   if(!APP||!APP.readCard){toast('Install the latest Kharcha app to read your card');return}
-  if(!APP.hasNfc()){cardState={error:'NFC is off – switch it on in your phone settings'};render();return}
-  cardBusy=true;cardState=null;render();
-  try{APP.readCard()}catch(e){cardBusy=false;toast('Could not start NFC')}
+  if(!APP.hasNfc()){cardErr='NFC is off – switch it on in your phone settings';render();return}
+  cardsBusy=true;cardErr=null;render();
+  try{APP.readCard()}catch(e){cardsBusy=false;toast('Could not start NFC')}
 }
-function importJourneys(){
-  const c=cardState;if(!c||!c.journeys)return;
+function topUpSheet(id){
+  openSheet(`<h3>Record a top-up</h3><div class="small muted">So Kharcha can tell a recharge apart from spending. This is not logged as an expense.</div>
+  <div class="amt"><span>₹</span><input id="tAmt" inputmode="decimal" placeholder="0" aria-label="Top-up amount"></div>
+  <button class="btn pri" id="tOk">Save top-up</button>`,sh=>{
+    setTimeout(()=>{const e=sh.querySelector('#tAmt');if(e)e.focus()},150);
+    sh.querySelector('#tOk').onclick=()=>{
+      const a=parseAmt(sh.querySelector('#tAmt').value);if(!a)return toast('Enter an amount');
+      const s=loadCards();const c=s.list[id];if(!c)return closeSheet();
+      c.topups=c.topups||[];c.topups.push({amt:a,ts:Date.now()});
+      // the stored balance stays as last READ; the top-up is only used to explain the next change
+      saveCards(s);closeSheet();render();toast('Top-up of '+inr(a)+' recorded – tap the card to refresh')}});
+}
+function renameSheet(id){
+  const c=loadCards().list[id];if(!c)return;
+  openSheet(`<h3>Name this card</h3><input id="cN" placeholder="Metro, Chalo, …" value="${esc(c.name||'')}" style="margin-top:8px">
+  <button class="btn pri" id="cOk">Save</button><button class="btn danger" id="cDel">Remove this card</button>`,sh=>{
+    sh.querySelector('#cOk').onclick=()=>{const s=loadCards();s.list[id].name=sh.querySelector('#cN').value.trim();saveCards(s);closeSheet();render()};
+    sh.querySelector('#cDel').onclick=()=>{if(!confirm('Remove this card from Kharcha? Your expenses stay.'))return;
+      const s=loadCards();delete s.list[id];saveCards(s);selCard=null;closeSheet();render();toast('Card removed')}});
+}
+function importJourneys(id){
+  const s=loadCards();const c=s.list[id];if(!c||!c.journeys)return;
   const known=c.known||{};let n=0;
   c.journeys.forEach(j=>{
     if(known[jkey(j)]||!(j.amt>0))return;
     S.expenses.push({id:uid(),amt:j.amt,cat:S.cats.some(x=>x.id==='travel')?'travel':'other',
-      payee:'Metro / bus',note:'Card journey',mode:'Card',ts:j.ts||Date.now(),src:'nfc'});
+      payee:cardName(c),note:'Card journey',mode:'Card',ts:j.ts||Date.now(),src:'nfc'});
     known[jkey(j)]=1;n++});
-  c.known=known;saveCard(c);save();render();
+  c.known=known;saveCards(s);save();render();
   toast(n?n+' journey'+(n>1?'s':'')+' added ✓':'All journeys are already logged');
 }
-function vCard(){
-  const c=cardState||loadCard();
-  const can=APP&&APP.readCard;
-  const js=(c&&c.journeys)||[];
+function logSpend(id){
+  const s=loadCards();const c=s.list[id];if(!c)return;
+  const si=spendInfo(c);if(!si||si.spent<=0)return;
+  S.expenses.push({id:uid(),amt:si.spent,cat:S.cats.some(x=>x.id==='travel')?'travel':'other',
+    payee:cardName(c),note:'Card spend since last tap',mode:'Card',ts:Date.now(),src:'nfc'});
+  c.prevBalance=c.balance;c.prevReadAt=c.readAt;saveCards(s);save();render();toast('Added '+inr(si.spent)+' travel ✓');
+}
+function cardBlock(c,open){
+  const si=spendInfo(c);
+  const js=c.journeys||[];
   const unlogged=js.filter(j=>j.amt>0&&!(c.known||{})[jkey(j)]).length;
-  view.innerHTML=`<h2 class="g">Travel card</h2>
-  <div class="small muted" style="margin:-8px 2px 0">Tap your metro or Chalo card on the back of your phone</div>
-  ${!can?`<div class="card"><b>Needs the latest app</b><div class="small muted" style="margin-top:4px">Card reading is part of the Kharcha Android app. Install the newest version to use it.</div></div>`:''}
-  ${c&&c.error?`<div class="banner" style="margin-top:14px">${esc(c.error)}</div>`:''}
-  ${c&&c.balance!=null?`<div class="balcard" style="margin-top:14px">
-    <div style="font-size:13px;color:#a9b8b2">Balance on card</div>
-    <div class="big g">${inr(c.balance)}</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      ${c.cardType?`<span class="pill">${esc(c.cardType)}</span>`:''}
-      ${c.pan?`<span class="pill">${esc(c.pan)}</span>`:''}
-      ${c.prevBalance!=null&&c.prevBalance!==c.balance?`<span class="pill" style="color:${c.balance<c.prevBalance?'#ffb4a2':'#5eeab4'}">${c.balance<c.prevBalance?'↓ spent '+inr(c.prevBalance-c.balance):'↑ topped up '+inr(c.balance-c.prevBalance)} since last tap</span>`:''}
+  const pend=(c.topups||[]).filter(t=>t.ts>(c.readAt||0)).reduce((s,t)=>s+t.amt,0);
+  let pill='';
+  if(pend>0)pill=`<span class="pill" style="color:#5eeab4">+${inr(pend)} topped up – tap to refresh</span>`;
+  else if(si&&si.unexplained)pill=`<span class="pill" style="color:#ffd79a">balance went up ${inr(-si.spent)} – record the top-up</span>`;
+  else if(si&&si.spent>0)pill=`<span class="pill" style="color:#ffb4a2">spent ${inr(si.spent)} since last tap</span>`;
+  else if(si&&si.topped>0)pill=`<span class="pill" style="color:#5eeab4">topped up ${inr(si.topped)}</span>`;
+  return `<div class="balcard" style="margin-top:12px">
+    <button style="display:flex;width:100%;align-items:flex-start;justify-content:space-between;gap:10px;color:#fff;text-align:left" data-sel="${esc(c.id)}">
+      <span><span style="font-size:13px;color:#a9b8b2">${esc(cardName(c))}</span>
+      <span class="big g" style="display:block">${c.balance!=null?inr(c.balance):'—'}</span></span>
+      <span data-ren="${esc(c.id)}" style="font-size:12px;color:#a9b8b2;padding:4px 8px;border-radius:9px;background:#ffffff14">Edit</span>
+    </button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      ${c.pan?`<span class="pill">${esc(c.pan)}</span>`:''}${pill}
     </div>
     <div style="font-size:12px;color:#a9b8b2;margin-top:10px">Read ${esc(dayLabel(c.readAt))} ${esc(tm(c.readAt))}</div>
-  </div>`:''}
-  ${can?`<div class="tapbox ${cardBusy?'live':''}" id="tapBox" style="margin-top:14px">
+  </div>
+  ${open?`<div class="row" style="margin-top:8px"><button class="btn" data-top="${esc(c.id)}">I topped up</button>${si&&si.spent>0&&!js.length?`<button class="btn pri" data-spend="${esc(c.id)}">Log ${inr(si.spent)} travel</button>`:''}</div>
+  ${js.length?`<div class="card" style="padding:6px 16px"><h4 style="margin:12px 0 2px">Journeys on the card</h4>${js.map(j=>{
+      const got=(c.known||{})[jkey(j)];
+      const when=j.ts?dayLabel(j.ts)+' '+tm(j.ts):j.mins+' min';
+      return `<div class="jrow"><div class="t"><b>${esc(when)}</b><small>${esc(j.status)} · terminal ${j.term}${got?' · logged':''}</small></div><b>${j.amt>0?inr(j.amt):'—'}</b></div>`}).join('')}</div>
+    ${unlogged?`<button class="btn pri" data-imp="${esc(c.id)}">Add ${unlogged} journey${unlogged>1?'s':''} to expenses</button>`:'<div class="small muted" style="text-align:center;margin-top:8px">All journeys are logged ✓</div>'}`:
+    '<div class="small muted" style="text-align:center;margin-top:10px">This card keeps no journey list on the chip, so Kharcha tracks it by balance.</div>'}`:''}`;
+}
+function vCard(){
+  const cards=cardList();
+  const can=APP&&APP.readCard;
+  if(!selCard&&cards.length)selCard=cards[0].id;
+  view.innerHTML=`<h2 class="g">Travel cards</h2>
+  <div class="small muted" style="margin:-8px 2px 0">Tap a metro or Chalo card on the back of your phone</div>
+  ${!can?`<div class="card"><b>Needs the latest app</b><div class="small muted" style="margin-top:4px">Card reading is part of the Kharcha Android app. Install the newest version to use it.</div></div>`:''}
+  ${cardErr?`<div class="banner" style="margin-top:14px">${esc(cardErr)}</div>`:''}
+  <div id="cards">${cards.map(c=>cardBlock(c,c.id===selCard)).join('')}</div>
+  ${can?`<div class="tapbox ${cardsBusy?'live':''}" id="tapBox" style="margin-top:14px">
     <div class="wave"><svg viewBox="0 0 24 24"><path d="M6 8a8 8 0 0 1 0 8M10 5a13 13 0 0 1 0 14M14 2a18 18 0 0 1 0 20"/><circle cx="3" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg></div>
-    <b>${cardBusy?'Hold the card against your phone…':(c&&c.balance!=null?'Tap again to refresh':'Tap card to read')}</b>
-    <div class="small muted">${cardBusy?'Usually the upper back of the phone. Keep it still for a second.':'Read only — Kharcha can never change your balance.'}</div>
+    <b>${cardsBusy?'Hold the card against your phone…':(cards.length?'Tap a card to read or refresh':'Tap card to read')}</b>
+    <div class="small muted">${cardsBusy?'Usually the upper back of the phone. Keep it still for a second.':'Read only — Kharcha can never change your balance. Each card is kept on its own.'}</div>
   </div>`:''}
-  ${js.length?`<div class="card" style="padding:6px 16px"><h4 style="margin:12px 0 2px">Journeys on the card</h4>${journeyRows(js,c.known)}</div>
-  ${unlogged?`<button class="btn pri" id="impJ">Add ${unlogged} journey${unlogged>1?'s':''} to expenses</button>`:'<div class="small muted" style="text-align:center;margin-top:10px">All journeys are logged ✓</div>'}`:
-   (c&&c.balance!=null?'<div class="small muted" style="text-align:center;margin-top:14px">This card did not share its journey history.</div>':'')}
-  ${c&&c.trace?`<button class="btn" id="rawB">Show what the card sent</button>`:''}`;
-  const tb=$('#tapBox');if(tb&&!cardBusy)tb.onclick=tapCard;
-  const ij=$('#impJ');if(ij)ij.onclick=importJourneys;
+  ${cards.length&&cards[0].trace?`<button class="btn" id="rawB">Show what the card sent</button>`:''}`;
+  const tb=$('#tapBox');if(tb&&!cardsBusy)tb.onclick=tapCard;
+  $('#cards').addEventListener('click',ev=>{
+    const r=ev.target.closest('[data-ren]');if(r){ev.stopPropagation();return renameSheet(r.dataset.ren)}
+    const t=ev.target.closest('[data-top]');if(t)return topUpSheet(t.dataset.top);
+    const sp=ev.target.closest('[data-spend]');if(sp)return logSpend(sp.dataset.spend);
+    const im=ev.target.closest('[data-imp]');if(im)return importJourneys(im.dataset.imp);
+    const s=ev.target.closest('[data-sel]');if(s){selCard=selCard===s.dataset.sel?null:s.dataset.sel;render()}});
   const rb=$('#rawB');if(rb)rb.onclick=()=>{
+    const c=cards[0];
     const dump=JSON.stringify({cardType:c.cardType,aid:c.aid,balance:c.balance,language:c.language,expiry:c.expiry,n:(c.journeys||[]).length,trace:c.trace},null,1);
     openSheet(`<h3>Card response</h3><div class="small muted">Tap Copy, then paste it to Claude.</div>
     <div class="mitem" style="word-break:break-all;font-size:11px;font-family:monospace;max-height:46vh;overflow:auto">${esc(dump)}</div>
