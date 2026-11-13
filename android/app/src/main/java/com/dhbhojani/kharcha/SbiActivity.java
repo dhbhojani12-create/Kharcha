@@ -520,6 +520,7 @@ public class SbiActivity extends Activity {
     void submitOtp() {
         String c = codeE.getText().toString().replaceAll("\\D", "");
         if (c.length() != 6) { err("The OTP has 6 digits"); return; }
+        stopSms();
         show("working", "Logging in…");
         steps(1, 2);
         hideKeyboard();
@@ -659,6 +660,13 @@ public class SbiActivity extends Activity {
         } catch (Exception ignored) { }
     }
 
+    /** stop listening once the OTP is in, so later SMS (like SBI's top-up confirmation) don't trigger the popup */
+    void stopSms() {
+        if (!smsOn) return;
+        try { unregisterReceiver(smsRx); } catch (Exception ignored) { }
+        smsOn = false;
+    }
+
     @Override
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
@@ -677,7 +685,7 @@ public class SbiActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        if (smsOn) try { unregisterReceiver(smsRx); } catch (Exception ignored) { }
+        stopSms();
         super.onDestroy();
     }
 
