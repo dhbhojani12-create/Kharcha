@@ -22,6 +22,8 @@ import android.util.Base64;
 import android.view.Gravity;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
+import android.os.SystemClock;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
@@ -533,11 +535,31 @@ public class SbiActivity extends Activity {
     }
 
     /* ---------------- real key presses into the hidden page ---------------- */
+    /** tap the field like a finger would (SBI shows the captcha box only after the ID box is tapped), then type */
     void typeField(String which, String val, Runnable next) {
         web.requestFocus();
-        web.evaluateJavascript("window.__kFocus?window.__kFocus(" + JSONObject.quote(which) + "):false", r -> {
+        tapField(which, () -> web.evaluateJavascript("window.__kFocus?window.__kFocus(" + JSONObject.quote(which) + "):false", r -> {
             if ("true".equals(r)) typeText(val);
             web.postDelayed(next, 350);
+        }));
+    }
+
+    void tapField(String which, Runnable then) {
+        web.evaluateJavascript("window.__kRect?window.__kRect(" + JSONObject.quote(which) + "):''", r -> {
+            try {
+                String js = r;
+                if (js != null && js.startsWith("\"")) js = new org.json.JSONTokener(js).nextValue().toString();
+                JSONObject p = new JSONObject(js);
+                float x = (float) p.getDouble("x"), y = (float) p.getDouble("y");
+                long t = SystemClock.uptimeMillis();
+                MotionEvent down = MotionEvent.obtain(t, t, MotionEvent.ACTION_DOWN, x, y, 0);
+                MotionEvent up = MotionEvent.obtain(t, t + 60, MotionEvent.ACTION_UP, x, y, 0);
+                web.dispatchTouchEvent(down);
+                web.dispatchTouchEvent(up);
+                down.recycle();
+                up.recycle();
+            } catch (Exception ignored) { }
+            web.postDelayed(then, 450);
         });
     }
 
@@ -560,6 +582,7 @@ public class SbiActivity extends Activity {
             if ("true".equals(r)) {
                 typeField("captcha", c, () -> web.evaluateJavascript("window.__kContinue()", null));
             } else if (n < 25) {
+                if (n == 8) tapField("username", () -> { }); // nudge again, like a second tap on the ID box
                 web.postDelayed(() -> waitCaptchaBox(n + 1, c), 200);
             } else {
                 show("help", "SBI did not show the captcha box.");

@@ -78,6 +78,15 @@
     try { el.setSelectionRange(0, 0); } catch (e) { }
     return document.activeElement === el;
   };
+  /* where a field is on screen, in device pixels inside the WebView, for a real tap */
+  window.__kRect = function (which) {
+    var el = field(which);
+    if (!el) return '';
+    try { el.scrollIntoView({ block: 'center' }); } catch (e) { }
+    var r = el.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    try { el.click(); } catch (e) { }
+    return JSON.stringify({ x: (r.left + r.width / 2) * d, y: (r.top + r.height / 2) * d });
+  };
   window.__kCapBox = function () { return !!capInput(); };
   window.__kOtpBoxes = function () { var n = 0; for (var i = 1; i <= 6; i++) if (field('otp' + i)) n++; return n; };
   window.__kContinue = function () {
