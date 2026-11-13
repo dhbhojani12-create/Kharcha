@@ -182,6 +182,7 @@ html[data-theme="dark"] .ccard.on{background:#17201d;border:1px solid #26302c}
 .cjh{display:flex;justify-content:space-between;align-items:baseline}
 .cjh h4{margin:0;font-size:15px}
 .cjh span{font-size:12px;color:var(--mut)}
+.cjl{max-height:42vh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;margin:0 -16px;padding:0 16px}
 .cjd{font-size:12px;font-weight:600;color:var(--mut);margin-top:12px;text-transform:uppercase;letter-spacing:.6px}
 .jrow .t small.ok{color:var(--okink)}
 .jrow b.g{font-size:17px}
@@ -542,15 +543,15 @@ function cardDetail(c){
   let list='';
   if(js.length){
     let lastDay='';
-    list=`<div class="card cjs"><div class="cjh"><h4>Last taps on the card</h4><span>chip keeps ${js.length}</span></div>${js.map(j=>{
+    list=`<div class="card cjs"><div class="cjh"><h4>Last taps on the card</h4><span>chip keeps ${js.length}</span></div><div class="cjl" id="cjl">${js.map(j=>{
       const day=dayLabel(j.ts);const head=day!==lastDay?`<div class="cjd">${esc(day)}</div>`:'';lastDay=day;
       const got=known[jkey(j)];const fare=j.amt>0;
-      return `${head}<div class="jrow"><div class="t"><b>${fare?'Fare':'Tap, no charge'}</b><small${got?' class="ok"':''}>${fare?(got?'Logged ✓':'Not logged yet'):'Usually the entry tap'}${j.dayOnly?'':' · '+esc(tm(j.ts))}</small></div>${fare?`<b class="g">${inr(j.amt)}</b>`:'<span class="muted">₹0</span>'}</div>`}).join('')}</div>`;
+      return `${head}<div class="jrow"><div class="t"><b>${fare?'Fare':'Tap, no charge'}</b><small${got?' class="ok"':''}>${fare?(got?'Logged ✓':'Not logged yet'):'Usually the entry tap'}${j.dayOnly?'':' · '+esc(tm(j.ts))}</small></div>${fare?`<b class="g">${inr(j.amt)}</b>`:'<span class="muted">₹0</span>'}</div>`}).join('')}</div></div>`;
   }else{
     list=`<div class="small muted" style="text-align:center;margin-top:14px">This card keeps no journey list on the chip, so Kharcha tracks it by balance.</div>`;
   }
   let act='';
-  if(todo.length)act=`<button class="btn pri" data-imp="${esc(c.id)}">Add ${inr(todoAmt)} ${todo.length>1?todo.length+' fares':'fare'} to expenses</button>`;
+  if(todo.length)act=`<button class="btn pri" data-imp="${esc(c.id)}">${todo.length>1?'Add '+todo.length+' fares · '+inr(todoAmt):'Add '+inr(todoAmt)+' fare'} to expenses</button>`;
   else if(!js.length&&si&&si.spent>0)act=`<button class="btn pri" data-spend="${esc(c.id)}">Log ${inr(si.spent)} travel</button>`;
   else if(js.length)act=`<div class="small muted" style="text-align:center;margin-top:10px">All fares are logged ✓</div>`;
   return `${pill?`<div class="cpill">${esc(pill)}</div>`:''}${list}${act}`;
@@ -578,6 +579,7 @@ function vCard(){
     <b>${cardsBusy?'Hold the card against your phone…':'Tap card to read'}</b>
     <div class="small muted">${cardsBusy?'Usually the upper back of the phone. Keep it still for a second.':'Read only — Kharcha can never change your balance. Each card is kept on its own.'}</div>
   </div>`:'')}</div>`;
+  fitJourneys();
   const tb=$('#tapBox');if(tb&&!cardsBusy)tb.onclick=tapCard;
   const nb=$('#tapB');if(nb&&!cardsBusy)nb.onclick=tapCard;
   const rf=$('#refB');if(rf&&!cardsBusy)rf.onclick=tapCard;
@@ -593,7 +595,7 @@ function vCard(){
       [...strip.children].forEach((ch,i)=>ch.classList.toggle('on',i===best));
       document.querySelectorAll('.cdots i').forEach((d,i)=>d.classList.toggle('on',i===best));
       const tp=document.querySelector('.cact [data-top]');if(tp)tp.dataset.top=id;
-      $('#cDetail').innerHTML=cardDetail(cards[best])},120)},{passive:true});
+      $('#cDetail').innerHTML=cardDetail(cards[best]);fitJourneys()},120)},{passive:true});
   }
   $('#cardsV').addEventListener('click',ev=>{
     const r=ev.target.closest('[data-ren]');if(r){ev.stopPropagation();return renameSheet(r.dataset.ren)}
@@ -602,6 +604,15 @@ function vCard(){
     const im=ev.target.closest('[data-imp]');if(im)return importJourneys(im.dataset.imp);
     const s=ev.target.closest('[data-sel]');if(s&&s.dataset.sel!==selCard){selCard=s.dataset.sel;render()}});
 }
+/* the journey list scrolls on its own; size it to whatever is left above the button and nav */
+function fitJourneys(){
+  const l=$('#cjl');if(!l)return;
+  l.style.maxHeight='none';
+  const top=l.getBoundingClientRect().top+scrollY;
+  const room=innerHeight-(top-scrollY)-210; // add button + note + bottom nav
+  l.style.maxHeight=Math.max(150,Math.round(room))+'px';
+}
+addEventListener('resize',()=>{if(tab==='card')fitJourneys()});
 function rawSheet(id){
   const c=loadCards().list[id];if(!c)return;
   const dump=JSON.stringify({cardType:c.cardType,aid:c.aid,balance:c.balance,expiry:c.expiry,journeys:realJourneys(c).length,trace:c.trace},null,1);
