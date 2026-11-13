@@ -286,6 +286,11 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void openSbi() {
+            runOnUiThread(() -> startActivity(new Intent(MainActivity.this, SbiActivity.class)));
+        }
+
+        @JavascriptInterface
         public void stopCard() {
             runOnUiThread(() -> nfcStop());
         }

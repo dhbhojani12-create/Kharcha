@@ -41,6 +41,13 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
+        <activity
+            android:name=".SbiActivity"
+            android:exported="false"
+            android:label="SBI Prepaid"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:windowSoftInputMode="adjustResize" />
+
         <service
             android:name=".PayReader"
             android:exported="false"

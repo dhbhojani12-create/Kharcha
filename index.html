@@ -572,6 +572,7 @@ function vCard(){
   ${cards.length>1?`<div class="cdots" aria-hidden="true">${cards.map(c=>`<i${c.id===selCard?' class="on"':''}></i>`).join('')}</div>`:''}
   <div class="cact"><button class="btn" id="refB"${can?'':' disabled'}><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Refresh</button>
     <button class="btn" data-top="${esc(selCard)}"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>I topped up</button></div>
+  ${APP&&APP.openSbi?`<button class="btn" id="sbiB" style="height:44px;font-size:14px;margin-top:10px">Top up on SBI Prepaid ›</button>`:''}
   <div id="cDetail">${cardDetail(cur)}</div>
   <div class="small muted" style="text-align:center;margin-top:10px">Read only. Kharcha can never change your balance.</div>`:
   (can?`<div class="tapbox ${cardsBusy?'live':''}" id="tapBox" style="margin-top:14px">
@@ -583,6 +584,7 @@ function vCard(){
   const tb=$('#tapBox');if(tb&&!cardsBusy)tb.onclick=tapCard;
   const nb=$('#tapB');if(nb&&!cardsBusy)nb.onclick=tapCard;
   const rf=$('#refB');if(rf&&!cardsBusy)rf.onclick=tapCard;
+  const sb=$('#sbiB');if(sb)sb.onclick=()=>{try{APP.openSbi()}catch(e){toast('Update the Kharcha app')}};
   const strip=$('#cStrip');
   if(strip){
     const idx=cards.findIndex(c=>c.id===selCard);
