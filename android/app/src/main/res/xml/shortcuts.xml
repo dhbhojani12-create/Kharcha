@@ -3,7 +3,7 @@
     <shortcut
         android:shortcutId="cash"
         android:enabled="true"
-        android:icon="@drawable/ic_cash"
+        android:icon="@drawable/sc_cash"
         android:shortcutShortLabel="@string/sc_cash_short"
         android:shortcutLongLabel="@string/sc_cash_long">
         <intent
@@ -17,7 +17,7 @@
     <shortcut
         android:shortcutId="add"
         android:enabled="true"
-        android:icon="@drawable/ic_add"
+        android:icon="@drawable/sc_add"
         android:shortcutShortLabel="@string/sc_add_short"
         android:shortcutLongLabel="@string/sc_add_long">
         <intent
@@ -30,7 +30,7 @@
     <shortcut
         android:shortcutId="month"
         android:enabled="true"
-        android:icon="@drawable/ic_chart"
+        android:icon="@drawable/sc_chart"
         android:shortcutShortLabel="@string/sc_month_short"
         android:shortcutLongLabel="@string/sc_month_long">
         <intent
