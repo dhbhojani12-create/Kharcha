@@ -14,8 +14,17 @@
   function byText(sel, re) { var a = q(sel); for (var i = 0; i < a.length; i++) if (re.test(txt(a[i]))) return a[i]; return null; }
   function setVal(el, v) {
     var proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    try { el.focus(); } catch (e) { }
+    el.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
     Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, v);
-    ['input', 'change', 'blur'].forEach(function (t) { el.dispatchEvent(new Event(t, { bubbles: true })); });
+    var k = String(v).slice(-1) || 'a';
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new KeyboardEvent('keyup', { key: k, bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    el.dispatchEvent(new Event('blur', { bubbles: false }));
+    try { el.blur(); } catch (e) { }
   }
   function once(k, f) { if (D[k]) return false; D[k] = 1; K.did(k); f(); return true; }
   var lastSay = '';
@@ -49,16 +58,32 @@
       return c.toDataURL('image/png');
     } catch (e) { return null; }
   }
+  function capInput() { return q('input[placeholder="Captcha"], input[name=text]')[0]; }
+  /* fill ID + password first; SBI only adds the captcha box after both are in */
   window.__kSubmitLogin = function (u, p, c) {
     var ue = q('input[name=username]')[0], pe = q('input[name=password]')[0];
-    var ce = q('input[placeholder="Captcha"], input[name=text]')[0];
     if (u && ue) setVal(ue, u);
     if (p && pe) setVal(pe, p);
-    if (!ce) { K.needUser('Captcha box not found – finish on the SBI page'); return; }
-    setVal(ce, c);
-    var b = q('button[name=verify]')[0] || byText('button', /continue|login|submit/i);
+    var keyBefore = lastCap, tries = 0;
     window.__ksub = Date.now();
-    setTimeout(function () { if (b) b.click(); else K.needUser('Tap Continue on the SBI page'); }, 150);
+    (function wait() {
+      var ce = capInput();
+      if (!ce) {
+        if (++tries < 25) return setTimeout(wait, 200);
+        window.__ksub = 0;
+        K.needUser('SBI did not show the captcha box. Finish the login on the SBI page.');
+        return;
+      }
+      var im = capImg();
+      if (keyBefore && im && (im.src.length + im.src.slice(-40)) !== keyBefore) {
+        window.__ksub = 0; // a new captcha appeared: ask for that one instead
+        return; // tick() sends the new image with a note
+      }
+      setVal(ce, c);
+      var b = q('button[name=verify]')[0] || byText('button', /continue|login|submit/i);
+      window.__ksub = Date.now();
+      setTimeout(function () { if (b) b.click(); else K.needUser('Tap Continue on the SBI page'); }, 200);
+    })();
   };
   var lastCap = '', capSent = '';
 
@@ -96,7 +121,7 @@
           if (d) {
             var err = window.__ksub ? (errText() || "SBI didn't accept that. Check the captcha – it's case-sensitive.") : '';
             if (window.__ksub || lastCap === '') { K.captcha(d, err); window.__ksub = 0; }
-            else K.captcha(d, '');
+            else K.captcha(d, 'SBI showed a new captcha – type this one.');
             lastCap = key; capSent = d;
           } else if (!window.__kneed) { window.__kneed = 1; K.needUser('Type the captcha on the SBI page'); }
         } else if (window.__ksub && Date.now() - window.__ksub > 7000) {

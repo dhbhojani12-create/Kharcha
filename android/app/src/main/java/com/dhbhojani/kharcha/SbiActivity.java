@@ -451,6 +451,16 @@ public class SbiActivity extends Activity {
                 });
                 steps(2, 3);
                 break;
+            case "help":
+                titleV.setText("Finish this step on the SBI page");
+                subV.setText(msg + " Kharcha picks up again after that.");
+                mainB.setText("Show the SBI page");
+                mainB.setVisibility(View.VISIBLE);
+                mainB.setOnClickListener(v -> showPage(true));
+                altB.setText("Start again");
+                altB.setVisibility(View.VISIBLE);
+                altB.setOnClickListener(v -> newCaptcha());
+                break;
             case "paying":
                 titleV.setText("Opening your payment app…");
                 subV.setText("Approve ₹" + fmt(amt) + " there, then come back here.");
@@ -487,7 +497,7 @@ public class SbiActivity extends Activity {
             u = userE.getText().toString().trim();
             p = passE.getText().toString();
             if (u.isEmpty() || p.isEmpty()) { err("Enter your User ID and password"); return; }
-            if (rememberC.isChecked()) SbiLogin.save(this, u, p);
+            pendingSave = rememberC.isChecked() ? new String[]{u, p} : null;
         }
         if (c.isEmpty()) { err("Type the captcha"); return; }
         startSms();
@@ -569,6 +579,7 @@ public class SbiActivity extends Activity {
     }
 
     String pendingOtp;
+    String[] pendingSave;
 
     @Override
     protected void onDestroy() {
@@ -705,9 +716,10 @@ public class SbiActivity extends Activity {
                 byte[] raw = Base64.decode(b64, Base64.DEFAULT);
                 Bitmap bm = BitmapFactory.decodeByteArray(raw, 0, raw.length);
                 runOnUiThread(() -> {
-                    String keep = "captcha".equals(state) && !SbiLogin.has(SbiActivity.this) ? userE.getText().toString() : null;
+                    String ku = userE.getText().toString(), kp = passE.getText().toString();
                     show("captcha", error == null || error.isEmpty() ? null : error);
-                    if (keep != null) userE.setText(keep);
+                    userE.setText(ku);
+                    passE.setText(kp);
                     capImg.setImageBitmap(bm);
                 });
             } catch (Exception e) {
@@ -719,6 +731,7 @@ public class SbiActivity extends Activity {
         public void otpPage(String error) {
             if (amt <= 0) return;
             runOnUiThread(() -> {
+                if (pendingSave != null) { SbiLogin.save(SbiActivity.this, pendingSave[0], pendingSave[1]); pendingSave = null; }
                 show("otp", error == null || error.isEmpty() ? null : error);
                 if (pendingOtp != null) { codeE.setText(pendingOtp); pendingOtp = null; }
             });
@@ -729,7 +742,7 @@ public class SbiActivity extends Activity {
         public void needUser(String why) {
             if (amt <= 0) return;
             runOnUiThread(() -> {
-                Toast.makeText(SbiActivity.this, why, Toast.LENGTH_LONG).show();
+                show("help", why);
                 showPage(true);
             });
         }
