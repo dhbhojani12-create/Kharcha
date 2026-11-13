@@ -16,7 +16,7 @@ import java.util.List;
  * Protocol, as documented by the open-source NCMC readers:
  *   SELECT PPSE -> AID -> SELECT AID -> GPO (with NCMC PDOL) -> tag DF33 holds the purse balance
  *   READ RECORD SFI 1/2  -> PAN + effective date
- *   READ RECORD SFI 16   -> Common Service Area: 4 journeys per record
+ *   READ RECORD SFI 16   -> transaction log, one transaction per record (circular)
  */
 public class NcmcCard {
 
@@ -131,11 +131,6 @@ public class NcmcCard {
     }
 
     /* ---------------- the read ---------------- */
-    static final String[] LANGS = {"English", "Hindi", "Bengali", "Marathi", "Telugu", "Tamil",
-            "Gujarati", "Urdu", "Kannada", "Odia", "Malayalam", "Punjabi", "Sanskrit", "Assamese",
-            "Maithili", "Santali", "Kashmiri", "Nepali", "Sindhi", "Dogri", "Konkani", "Manipuri", "Bodo"};
-    static final String[] STATUS = {"Exit", "Entry", "Penalty", "One tap"};
-
     /** Reads the card and returns everything as JSON for the app to show. */
     public static JSONObject read(IsoDep iso) throws Exception {
         JSONObject out = new JSONObject();
@@ -209,12 +204,7 @@ public class NcmcCard {
                 }
             }
 
-            // 5. journeys. Read where the card's own directory (AFL) says its records are,
-            //    then the log SFI, then DF33 itself. Everything is dumped so an unknown
-            //    layout can be worked out from one tap.
-            JSONArray journeys = new JSONArray();
-            List<byte[]> blobs = new ArrayList<>();
-
+            // 5. journeys. AFL records are dumped for the trace only.
             if (afl != null) {
                 for (int k = 0; k + 3 < afl.length; k += 4) {
                     int sfi = (afl[k] & 0xFF) >> 3;
@@ -224,60 +214,40 @@ public class NcmcCard {
                         byte[] d = readRecord(iso, sfi, rec);
                         if (d == null) continue;
                         trace.put("SFI" + sfi + "/" + rec + "(" + d.length + ") " + hx(d));
-                        blobs.add(d);
                     }
                 }
             }
+
+            // The card's transaction log lives in SFI 16, one fixed-layout record per transaction:
+            //   [0] 0x11  [1..4] cryptogram  [5..12] terminal id (ASCII)  [13..14] ATC (counter)
+            //   [15..20] amount, BCD paise  [21..26] other amount  [27..29] date YYMMDD BCD
+            //   [30..] service data snapshot
+            // The log is circular and small (3-5 entries seen): once a counter repeats, the
+            // card has wrapped around to the start, so stop there.
+            JSONArray journeys = new JSONArray();
+            java.util.Set<Integer> seen = new java.util.HashSet<>();
             for (int rec = 1; rec <= LOG_RECORDS; rec++) {
                 byte[] d = readRecord(iso, LOG_SFI, rec);
                 if (d == null) break;
                 trace.put("SFI16/" + rec + "(" + d.length + ") " + hx(d));
-                blobs.add(d);
-            }
-            if (df != null) blobs.add(df);
-
-            // any 96-byte stretch is a Common Service Area: 1 validation + 4 journeys
-            List<byte[]> csas = new ArrayList<>();
-            for (byte[] d : blobs) {
-                if (d.length == 96) { csas.add(d); continue; }
-                for (Tlv t : parseTlv(d)) if (t.value.length == 96) csas.add(t.value);
-                if (d.length > 96) {
-                    csas.add(Arrays.copyOfRange(d, d.length - 96, d.length));
-                    if (d.length >= 128) csas.add(Arrays.copyOfRange(d, 32, 128));
-                }
-            }
-            int recNo = 0;
-            for (byte[] csa : csas) {
-                recNo++;
-                if (!out.has("language")) {
-                    int lang = (csa[1] >> 3) & 0x1F;
-                    if (lang < LANGS.length) out.put("language", LANGS[lang]);
-                }
-                for (int i = 0; i < 4; i++) {
-                    int o = 21 + i * 17;
-                    int acq = csa[o] & 0xFF;
-                    int opId = u16(csa, o + 1);
-                    int term = u24(csa, o + 3);
-                    int mins = u24(csa, o + 6);
-                    int seq = u16(csa, o + 9);
-                    double amt = u16(csa, o + 11) / 10.0;
-                    long bs = ((long) (csa[o + 13] & 0xFF) << 16) | ((csa[o + 14] & 0xFF) << 8) | (csa[o + 15] & 0xFF);
-                    double balBefore = ((bs >> 4) & 0xFFFFF) / 10.0;
-                    int st = (int) (bs & 0x0F);
-                    // a real journey has a time, a sequence number and a sane amount
-                    if (mins <= 0 || seq <= 0 || amt > 10000 || balBefore > 100000) continue;
-                    JSONObject j = new JSONObject();
-                    j.put("seq", seq);
-                    j.put("mins", mins);
-                    j.put("acq", acq);
-                    j.put("op", opId);
-                    j.put("term", term);
-                    j.put("amt", amt);
-                    j.put("balBefore", balBefore);
-                    j.put("status", st < STATUS.length ? STATUS[st] : "?");
-                    if (effMs > 0) j.put("ts", effMs + (long) mins * 60000L);
-                    journeys.put(j);
-                }
+                if (d.length < 30 || (d[0] & 0xFF) != 0x11) continue;
+                int atc = u16(d, 13);
+                if (!seen.add(atc)) break;
+                long paise;
+                try { paise = Long.parseLong(hx(Arrays.copyOfRange(d, 15, 21))); }
+                catch (Exception e) { continue; }   // not BCD -> not a log entry
+                long day = bcdDate(Arrays.copyOfRange(d, 27, 30));
+                if (day == 0) continue;
+                String term = new String(Arrays.copyOfRange(d, 5, 13), "US-ASCII").trim();
+                JSONObject j = new JSONObject();
+                j.put("v", 2);
+                j.put("seq", atc);
+                j.put("amt", paise / 100.0);
+                j.put("ts", day);
+                j.put("dayOnly", true);
+                j.put("term", term);
+                j.put("status", paise > 0 ? "Fare" : "No charge");
+                journeys.put(j);
             }
             out.put("journeys", journeys);
             if (effMs > 0) out.put("effective", effMs);
@@ -303,7 +273,7 @@ public class NcmcCard {
     static int u16(byte[] b, int o) { return ((b[o] & 0xFF) << 8) | (b[o + 1] & 0xFF); }
     static int u24(byte[] b, int o) { return ((b[o] & 0xFF) << 16) | ((b[o + 1] & 0xFF) << 8) | (b[o + 2] & 0xFF); }
 
-    /** YYMMDD in BCD -> epoch millis (local midnight). */
+    /** YYMMDD in BCD -> epoch millis (local midnight), 0 if invalid. */
     static long bcdDate(byte[] b) {
         try {
             String s = hx(b);
@@ -312,6 +282,7 @@ public class NcmcCard {
             int mm = Integer.parseInt(s.substring(2, 4));
             int dd = Integer.parseInt(s.substring(4, 6));
             java.util.Calendar c = java.util.Calendar.getInstance();
+            if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return 0;
             c.clear();
             c.set(2000 + yy, mm - 1, dd, 0, 0, 0);
             return c.getTimeInMillis();

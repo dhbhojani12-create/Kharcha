@@ -408,7 +408,8 @@ function loadCards(){try{const c=JSON.parse(localStorage.getItem(CARDK));if(c&&c
   return{list:{}}}
 function saveCards(c){try{localStorage.setItem(CARDK,JSON.stringify(c))}catch(e){}}
 const cardList=()=>Object.values(loadCards().list).sort((a,b)=>(b.readAt||0)-(a.readAt||0));
-const jkey=j=>[j.seq,j.mins,j.term,j.op].join('-');
+const jkey=j=>j.v===2?'v2-'+j.seq+'-'+j.ts:[j.seq,j.mins,j.term,j.op].join('-');
+const realJourneys=c=>(c.journeys||[]).filter(j=>j.v===2); // older builds misread the log; ignore those
 const cardName=c=>c.name||c.cardType||'Travel card';
 
 /** spent since the previous tap, allowing for top-ups the user recorded */
@@ -427,8 +428,8 @@ window.kharchaCard=function(res){
   const store=loadCards();
   const id=res.pan||res.aid||'card';
   const prev=store.list[id]||{};
-  if(Array.isArray(res.journeys)){const seen={};res.journeys=res.journeys.filter(j=>{const k=jkey(j);if(seen[k])return false;seen[k]=1;return true}).sort((a,b)=>(b.ts||b.mins)-(a.ts||a.mins))}
-  const c={...prev,...res,id,
+  if(Array.isArray(res.journeys)){const seen={};res.journeys=res.journeys.filter(j=>{const k=jkey(j);if(seen[k])return false;seen[k]=1;return true}).sort((a,b)=>((b.ts||0)-(a.ts||0))||((b.seq||0)-(a.seq||0)))}
+  const c={...prev,...res,id,language:undefined,
     name:prev.name,
     topups:prev.topups||[],
     known:prev.known||{},
@@ -468,7 +469,7 @@ function renameSheet(id){
 function importJourneys(id){
   const s=loadCards();const c=s.list[id];if(!c||!c.journeys)return;
   const known=c.known||{};let n=0;
-  c.journeys.forEach(j=>{
+  realJourneys(c).forEach(j=>{
     if(known[jkey(j)]||!(j.amt>0))return;
     S.expenses.push({id:uid(),amt:j.amt,cat:S.cats.some(x=>x.id==='travel')?'travel':'other',
       payee:cardName(c),note:'Card journey',mode:'Card',ts:j.ts||Date.now(),src:'nfc'});
@@ -485,7 +486,7 @@ function logSpend(id){
 }
 function cardBlock(c,open){
   const si=spendInfo(c);
-  const js=c.journeys||[];
+  const js=realJourneys(c);
   const unlogged=js.filter(j=>j.amt>0&&!(c.known||{})[jkey(j)]).length;
   const pend=(c.topups||[]).filter(t=>t.ts>(c.readAt||0)).reduce((s,t)=>s+t.amt,0);
   let pill='';
@@ -507,8 +508,8 @@ function cardBlock(c,open){
   ${open?`<div class="row" style="margin-top:8px"><button class="btn" data-top="${esc(c.id)}">I topped up</button>${si&&si.spent>0&&!js.length?`<button class="btn pri" data-spend="${esc(c.id)}">Log ${inr(si.spent)} travel</button>`:''}</div>
   ${js.length?`<div class="card" style="padding:6px 16px"><h4 style="margin:12px 0 2px">Journeys on the card</h4>${js.map(j=>{
       const got=(c.known||{})[jkey(j)];
-      const when=j.ts?dayLabel(j.ts)+' '+tm(j.ts):j.mins+' min';
-      return `<div class="jrow"><div class="t"><b>${esc(when)}</b><small>${esc(j.status)} · terminal ${j.term}${got?' · logged':''}</small></div><b>${j.amt>0?inr(j.amt):'—'}</b></div>`}).join('')}</div>
+      const when=j.dayOnly?dayLabel(j.ts):dayLabel(j.ts)+' '+tm(j.ts);
+      return `<div class="jrow"><div class="t"><b>${esc(when)}</b><small>${esc(j.status)}${got?' · logged':''}</small></div><b>${j.amt>0?inr(j.amt):'—'}</b></div>`}).join('')}</div>
     ${unlogged?`<button class="btn pri" data-imp="${esc(c.id)}">Add ${unlogged} journey${unlogged>1?'s':''} to expenses</button>`:'<div class="small muted" style="text-align:center;margin-top:8px">All journeys are logged ✓</div>'}`:
     '<div class="small muted" style="text-align:center;margin-top:10px">This card keeps no journey list on the chip, so Kharcha tracks it by balance.</div>'}`:''}`;
 }
@@ -536,7 +537,7 @@ function vCard(){
     const s=ev.target.closest('[data-sel]');if(s){selCard=selCard===s.dataset.sel?null:s.dataset.sel;render()}});
   const rb=$('#rawB');if(rb)rb.onclick=()=>{
     const c=cards[0];
-    const dump=JSON.stringify({cardType:c.cardType,aid:c.aid,balance:c.balance,language:c.language,expiry:c.expiry,n:(c.journeys||[]).length,trace:c.trace},null,1);
+    const dump=JSON.stringify({cardType:c.cardType,aid:c.aid,balance:c.balance,expiry:c.expiry,journeys:realJourneys(c).length,trace:c.trace},null,1);
     openSheet(`<h3>Card response</h3><div class="small muted">Tap Copy, then paste it to Claude.</div>
     <div class="mitem" style="word-break:break-all;font-size:11px;font-family:monospace;max-height:46vh;overflow:auto">${esc(dump)}</div>
     <button class="btn pri" id="rCopy">Copy</button><button class="btn" id="rOk">Close</button>`,sh=>{
