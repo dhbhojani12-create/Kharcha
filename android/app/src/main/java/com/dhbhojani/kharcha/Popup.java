@@ -63,6 +63,9 @@ public class Popup {
     }
 
     static View showing;
+    /** filled in by voice before showing the cash pop-up */
+    static double preAmt = 0;
+    static String prePayee = "", preCat = "", preHeard = "";
     static EditText curAmt;
 
     static int dp(Context c, float v) {
@@ -122,7 +125,12 @@ public class Popup {
 
         double amt = Parse.amount(text);
         String payee = Parse.payee(text);
-        final String remembered = rules.optString(Parse.key(payee), "");
+        final String heard = cash ? preHeard : "";
+        if (cash && preAmt > 0) amt = preAmt;
+        if (cash && !prePayee.isEmpty()) payee = prePayee;
+        final String voiceCat = cash ? preCat : "";
+        preAmt = 0; prePayee = ""; preCat = ""; preHeard = "";
+        final String remembered = !voiceCat.isEmpty() ? voiceCat : rules.optString(Parse.key(payee), "");
         final String[] sel = {remembered};
 
         FrameLayout root = new FrameLayout(c);
@@ -151,6 +159,14 @@ public class Popup {
         ignore.setPadding(dp(c, 10), dp(c, 7), dp(c, 10), dp(c, 7));
         head.addView(ignore);
         card.addView(head);
+        if (!heard.isEmpty()) {
+            TextView h = label(c, "🎤 Heard: \u201C" + heard + "\u201D", 11.5f, OKINK, false);
+            h.setBackground(box(c, SOFT, 0, 10, 0));
+            h.setPadding(dp(c, 10), dp(c, 6), dp(c, 10), dp(c, 6));
+            LinearLayout.LayoutParams hlp0 = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            hlp0.topMargin = dp(c, 10);
+            card.addView(h, hlp0);
+        }
 
         /* amount + payee side by side */
         LinearLayout mid = new LinearLayout(c);
@@ -234,7 +250,7 @@ public class Popup {
                 JSONObject o = cats.optJSONObject(i);
                 if (o != null && remembered.equals(o.optString("id"))) nm = o.optString("name");
             }
-            hint.setText(nm + " picked automatically, like last time");
+            hint.setText(nm + (voiceCat.isEmpty() ? " picked automatically, like last time" : " picked from what you said"));
             LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             hlp.topMargin = dp(c, 7);
             hlp.leftMargin = dp(c, 3);

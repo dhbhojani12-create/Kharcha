@@ -217,6 +217,7 @@ public class PayListener extends NotificationListenerService {
         } catch (Exception ignored) { }
         NotificationManager nm = c.getSystemService(NotificationManager.class);
         if (nm != null) nm.cancel(7);
+        try { KharchaWidget.refresh(c); } catch (Exception ignored) { }
     }
 
     static void fill(JSONObject o, double amt, String payee, String cat, String note) throws Exception {

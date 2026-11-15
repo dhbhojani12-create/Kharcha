@@ -15,4 +15,6 @@
     <color name="w_tile_mut">#B3EEF3F1</color>
     <color name="w_low_bg">#3A1A17</color>
     <color name="w_low">#FF8B7E</color>
+    <color name="w_mic_bg">#1F3A35</color>
+    <color name="w_sep">#2A3330</color>
 </resources>

@@ -287,6 +287,13 @@ public class MainActivity extends Activity {
             return CardTapActivity.take(MainActivity.this);
         }
 
+        /** {dayStart, monthStart, today, month} for the widget */
+        @JavascriptInterface
+        public void setTotals(String json) {
+            getSharedPreferences("k", MODE_PRIVATE).edit().putString("totals", json).apply();
+            KharchaWidget.refresh(MainActivity.this);
+        }
+
         @JavascriptInterface
         public boolean hasNfc() {
             NfcAdapter a = NfcAdapter.getDefaultAdapter(MainActivity.this);

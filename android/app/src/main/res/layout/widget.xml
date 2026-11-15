@@ -8,8 +8,11 @@
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:gravity="center_vertical">
         <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
-            android:layout_marginStart="2dp" android:text="TRAVEL CARDS" android:letterSpacing="0.04"
+            android:layout_marginStart="2dp" android:text="KHARCHA" android:letterSpacing="0.04"
             android:textColor="@color/w_mut" android:textSize="12sp" android:textStyle="bold" />
+        <ImageView android:id="@+id/w_mic" android:layout_width="36dp" android:layout_height="36dp"
+            android:layout_marginEnd="8dp" android:background="@drawable/w_micbg" android:scaleType="center"
+            android:src="@drawable/ic_mic" android:contentDescription="Add by voice" />
         <TextView android:id="@+id/w_cash" android:layout_width="wrap_content" android:layout_height="36dp"
             android:background="@drawable/w_pill" android:gravity="center"
             android:paddingStart="16dp" android:paddingEnd="16dp"
@@ -71,5 +74,24 @@
         <TextView android:id="@+id/w_empty" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="Tap your card in Kharcha once to see its balance here" android:textColor="@color/w_mut"
             android:textSize="12sp" android:background="@drawable/w_row" android:padding="12dp" android:visibility="gone" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/w_tot" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="10dp" android:orientation="horizontal" android:background="@drawable/w_row"
+        android:paddingStart="14dp" android:paddingEnd="14dp" android:paddingTop="8dp" android:paddingBottom="9dp">
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TODAY"
+                android:textColor="@color/w_mut" android:textSize="10sp" android:textStyle="bold" />
+            <TextView android:id="@+id/w_today" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="@color/w_ink" android:textSize="17sp" android:textStyle="bold" android:text="₹0" />
+        </LinearLayout>
+        <ImageView android:layout_width="1dp" android:layout_height="match_parent" android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp" android:background="@color/w_sep" />
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
+            <TextView android:id="@+id/w_monthname" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="THIS MONTH" android:textColor="@color/w_mut" android:textSize="10sp" android:textStyle="bold" />
+            <TextView android:id="@+id/w_month" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="@color/w_ink" android:textSize="17sp" android:textStyle="bold" android:text="₹0" />
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>

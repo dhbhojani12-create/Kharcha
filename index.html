@@ -255,7 +255,11 @@ function load(){
   return{v:2,expenses:[],cats:DEF_CATS.slice(),rules:{},seen:{},theme:'system'};
 }
 function save(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){toast('Could not save – storage full?')}syncNative()}
-function syncNative(){if(APP&&APP.setCats){try{APP.setCats(JSON.stringify(S.cats.map(c=>({id:c.id,name:c.name,emoji:c.emoji||EMO[c.id]||'🏷️'}))));APP.setRules(JSON.stringify(S.rules))}catch(e){}}}
+/* today / this month totals for the home-screen widget */
+function syncTotals(){if(!(APP&&APP.setTotals))return;try{const n=new Date();const d0=new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime();const m0=new Date(n.getFullYear(),n.getMonth(),1).getTime();
+  let t=0,m=0;S.expenses.forEach(e=>{if(e.ts>=m0){m+=e.amt;if(e.ts>=d0)t+=e.amt}});
+  APP.setTotals(JSON.stringify({dayStart:d0,monthStart:m0,today:Math.round(t*100)/100,month:Math.round(m*100)/100}))}catch(e){}}
+function syncNative(){syncTotals();if(APP&&APP.setCats){try{APP.setCats(JSON.stringify(S.cats.map(c=>({id:c.id,name:c.name,emoji:c.emoji||EMO[c.id]||'🏷️'}))));APP.setRules(JSON.stringify(S.rules))}catch(e){}}}
 
 /* ---------- helpers ---------- */
 const $=s=>document.querySelector(s);

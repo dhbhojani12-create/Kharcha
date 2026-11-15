@@ -58,6 +58,7 @@ public class KharchaWidget extends AppWidgetProvider {
             v.setTextViewText(WHEN[i], at > 0 ? "read " + new SimpleDateFormat("d MMM, h:mm a", Locale.ENGLISH).format(new Date(at)) : "");
         }
         v.setViewVisibility(R.id.w_empty, shown == 0 ? View.VISIBLE : View.GONE);
+        totals(c, v);
 
         // tap the cards -> Kharcha's travel card tab (tap your card there to refresh the balance)
         Intent open = new Intent(c, MainActivity.class).putExtra("a", "card")
@@ -70,6 +71,53 @@ public class KharchaWidget extends AppWidgetProvider {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
         v.setOnClickPendingIntent(R.id.w_cash, PendingIntent.getActivity(c, 12, cash,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
+        // mic -> speak an expense, then the pop-up opens filled in
+        Intent voice = new Intent(c, CashActivity.class).putExtra("voice", true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        v.setOnClickPendingIntent(R.id.w_mic, PendingIntent.getActivity(c, 13, voice,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
+        Intent month = new Intent(c, MainActivity.class).putExtra("a", "month")
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        v.setOnClickPendingIntent(R.id.w_tot, PendingIntent.getActivity(c, 14, month,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
         return v;
+    }
+
+    /** today / this month: totals the app last saved + anything added from the widget since (not yet in the app). */
+    static void totals(Context c, RemoteViews v) {
+        android.content.SharedPreferences p = c.getSharedPreferences("k", Context.MODE_PRIVATE);
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0);
+        cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0);
+        long dayStart = cal.getTimeInMillis();
+        cal.set(java.util.Calendar.DAY_OF_MONTH, 1);
+        long monthStart = cal.getTimeInMillis();
+
+        double today = 0, month = 0;
+        try {
+            JSONObject t = new JSONObject(p.getString("totals", "{}"));
+            if (t.optLong("dayStart") == dayStart) today = t.optDouble("today", 0);
+            if (t.optLong("monthStart") == monthStart) month = t.optDouble("month", 0);
+        } catch (Exception ignored) { }
+        try {
+            JSONArray q = new JSONArray(p.getString("q", "[]"));
+            for (int i = 0; i < q.length(); i++) {
+                JSONObject o = q.getJSONObject(i);
+                if (!o.optBoolean("done")) continue;
+                long ts = o.optLong("ts");
+                double a = o.optDouble("amt", 0);
+                if (ts >= dayStart) today += a;
+                if (ts >= monthStart) month += a;
+            }
+        } catch (Exception ignored) { }
+        v.setTextViewText(R.id.w_today, rupees(today));
+        v.setTextViewText(R.id.w_month, rupees(month));
+        v.setTextViewText(R.id.w_monthname, new SimpleDateFormat("MMMM", Locale.ENGLISH).format(new Date()).toUpperCase(Locale.ENGLISH));
+    }
+
+    static String rupees(double a) {
+        java.text.NumberFormat f = java.text.NumberFormat.getNumberInstance(new Locale("en", "IN"));
+        f.setMaximumFractionDigits(a < 1000 && a != Math.floor(a) ? 2 : 0);
+        return "₹" + f.format(a);
     }
 }
