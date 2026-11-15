@@ -281,6 +281,12 @@ public class MainActivity extends Activity {
             KharchaWidget.refresh(MainActivity.this);
         }
 
+        /** card reads made by tapping the card while Kharcha was closed */
+        @JavascriptInterface
+        public String takeCardReads() {
+            return CardTapActivity.take(MainActivity.this);
+        }
+
         @JavascriptInterface
         public boolean hasNfc() {
             NfcAdapter a = NfcAdapter.getDefaultAdapter(MainActivity.this);

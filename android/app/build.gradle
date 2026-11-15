@@ -10,8 +10,8 @@ android {
         applicationId 'com.dhbhojani.kharcha'
         minSdk 29
         targetSdk 34
-        versionCode 33
-        versionName '5.19'
+        versionCode 34
+        versionName '5.20'
     }
 
     signingConfigs {
