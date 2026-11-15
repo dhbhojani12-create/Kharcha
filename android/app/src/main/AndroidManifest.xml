@@ -75,7 +75,8 @@
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
             android:taskAffinity="com.dhbhojani.kharcha.tap"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            android:noHistory="true"
+            android:theme="@style/Invisible">
             <intent-filter>
                 <action android:name="android.nfc.action.TECH_DISCOVERED" />
             </intent-filter>
