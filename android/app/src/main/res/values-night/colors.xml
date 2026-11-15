@@ -7,4 +7,12 @@
     <color name="w_bal">#5EEAB4</color>
     <color name="w_btn">#5EEAB4</color>
     <color name="w_on_btn">#0E1513</color>
+    <color name="w_t1a">#0D5E57</color>
+    <color name="w_t1b">#127A6C</color>
+    <color name="w_t2a">#1A2F6B</color>
+    <color name="w_t2b">#2848A3</color>
+    <color name="w_tile_ink">#EEF3F1</color>
+    <color name="w_tile_mut">#B3EEF3F1</color>
+    <color name="w_low_bg">#3A1A17</color>
+    <color name="w_low">#FF8B7E</color>
 </resources>

@@ -23,6 +23,8 @@ public class KharchaWidget extends AppWidgetProvider {
     static final int[] NAME = {R.id.w_name1, R.id.w_name2};
     static final int[] BAL = {R.id.w_bal1, R.id.w_bal2};
     static final int[] WHEN = {R.id.w_when1, R.id.w_when2};
+    static final int[] LOW = {R.id.w_low1, R.id.w_low2};
+    static final double LOW_AT = 50;
 
     @Override
     public void onUpdate(Context c, AppWidgetManager m, int[] ids) {
@@ -51,6 +53,7 @@ public class KharchaWidget extends AppWidgetProvider {
             String last4 = o.optString("last4", "");
             v.setTextViewText(NAME[i], o.optString("name", "Travel card") + (last4.isEmpty() ? "" : " ··" + last4));
             v.setTextViewText(BAL[i], o.isNull("balance") ? "—" : "₹" + Parse.fmt(o.optDouble("balance")));
+            v.setViewVisibility(LOW[i], !o.isNull("balance") && o.optDouble("balance") < LOW_AT ? View.VISIBLE : View.GONE);
             long at = o.optLong("readAt", 0);
             v.setTextViewText(WHEN[i], at > 0 ? "read " + new SimpleDateFormat("d MMM, h:mm a", Locale.ENGLISH).format(new Date(at)) : "");
         }
