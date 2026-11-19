@@ -22,7 +22,7 @@ public class PayReader extends AccessibilityService {
             "(transaction status|^paid to$|^sent to$|^paid to |payment successful|paid successfully|transaction successful|money sent|sent successfully|payment complete|payment done|transfer successful|^sent$|^paid$|^success$|^successful$)",
             Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
     static final Pattern BAD = Pattern.compile(
-            "\\b(failed|pending|declined|processing|enter amount|enter upi pin|insufficient|cancelled|canceled)\\b",
+            "\\b(failed|pending|declined|processing|enter amount|enter upi pin|insufficient|cancelled|canceled|unable to process)\\b",
             Pattern.CASE_INSENSITIVE);
     static final Pattern DATETIME = Pattern.compile("\\d{1,2}\\s+[A-Za-z]{3,9},?\\s+\\d{4},?\\s+\\d{1,2}:\\d{2}(\\s*[AaPp][Mm])?");
     static final Pattern AMT = Pattern.compile("₹\\s*([\\d,]+(?:\\.\\d{1,2})?)");
@@ -84,7 +84,9 @@ public class PayReader extends AccessibilityService {
             }
             if (amt <= 0 || count > 3) return;   // history lists have many amounts – ignore them
 
-            String payee = findPayee(lines);
+            // prefer the UPI ID (stable, and remembers the category better); fall back to the name
+            String upi = findUpiId(lines);
+            String payee = upi.isEmpty() ? findPayee(lines) : upi;
             boolean hasUpiId = all.contains("@");
             // The name card animates in after "₹ Sent" – wait up to 2.5 s for it.
             if (payee.isEmpty() || !hasUpiId) {
@@ -133,6 +135,18 @@ public class PayReader extends AccessibilityService {
         if (BANKISH.matcher(s).find()) return false;
         if (s.toLowerCase().startsWith("powered")) return false;
         return s.split("\\s+").length <= 6;
+    }
+
+    static final Pattern UPI_ID = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._-]{1,60}@[A-Za-z][A-Za-z0-9]{1,30}$");
+
+    /** the payee's UPI ID shown on the success screen (masked ones like ****0050@hdfc are skipped) */
+    static String findUpiId(List<String> lines) {
+        for (String l : lines) {
+            String t = l.trim().replace(" ", "");
+            if (t.toLowerCase().startsWith("upiid:")) t = t.substring(6);
+            if (UPI_ID.matcher(t).matches()) return t;
+        }
+        return "";
     }
 
     static String findPayee(List<String> lines) {

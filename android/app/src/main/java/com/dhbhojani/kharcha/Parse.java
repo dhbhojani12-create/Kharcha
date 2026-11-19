@@ -23,8 +23,12 @@ public class Parse {
         return a;
     }
 
+    static final Pattern VPA = Pattern.compile("\\bto\\s+([A-Za-z0-9][A-Za-z0-9._-]{1,60}@[A-Za-z][A-Za-z0-9]{1,30})", Pattern.CASE_INSENSITIVE);
+
     static String payee(String t) {
         if (t == null) return "";
+        Matcher v = VPA.matcher(t);
+        if (v.find()) return v.group(1);
         Matcher m = PAYEE.matcher(t);
         return m.find() ? m.group(1).trim() : "";
     }
