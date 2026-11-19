@@ -201,6 +201,25 @@ html[data-theme="dark"] .ccard.on{background:#17201d;border:1px solid #26302c}
 .tsteps i.a{background:var(--accent);color:#0e1513}
 .jrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
 .jrow:last-child{border-bottom:0}
+.stc{padding:14px 14px 12px;margin-top:12px}
+.sth{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sth h4{margin:0;font-size:17px}.sth span{font-size:12px;color:var(--mut)}
+.stm{display:flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap}
+.stm button{width:30px;height:30px;border-radius:10px;border:0;background:var(--card2);color:var(--ink);font-size:17px}
+.stm button[disabled]{opacity:.3}
+.sts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.sts div{background:var(--card2);border-radius:14px;padding:9px 11px}
+.sts small{display:block;font-size:10.5px;color:var(--mut);font-weight:700;letter-spacing:.3px}
+.sts b{font-size:17px}
+.stc .dr{color:var(--red,#d0453a)}.stc .cr{color:var(--okink,#0b6b47)}
+.stt{margin:12px -14px 0;border-top:1px solid var(--line)}
+.str{display:grid;grid-template-columns:52px 1fr 68px 70px;gap:6px;padding:9px 14px;align-items:center;font-size:13px;border-bottom:1px solid var(--line)}
+.str span:nth-child(n+3){text-align:right;font-variant-numeric:tabular-nums}
+.str .d{color:var(--mut);font-size:12px}.str b{font-weight:600}.str small{display:block;color:var(--mut);font-size:11px}
+.str .bl{font-weight:700}
+.sthd{font-size:10.5px;font-weight:700;color:var(--mut);letter-spacing:.4px;padding-top:7px;padding-bottom:7px}
+.sto{font-weight:700;background:var(--card2)}.sto span:nth-child(2){color:var(--mut)}
+
 .jrow .t{flex:1;min-width:0}
 .jrow .t b{display:block;font-size:14.5px;font-weight:600}
 .jrow .t small{display:block;color:var(--mut);font-size:12.5px}
@@ -465,6 +484,117 @@ const jkey=j=>j.v===2?'v2-'+j.seq+'-'+j.ts:[j.seq,j.mins,j.term,j.op].join('-');
 const realJourneys=c=>(c.journeys||[]).filter(j=>j.v===2); // older builds misread the log; ignore those
 const cardName=c=>c.name||c.cardType||'Travel card';
 
+/* ---------- card statement ---------- */
+/* The chip keeps only its last few taps, so Kharcha keeps every fare it has seen (hist)
+   and every balance it has read (snaps). The statement is rebuilt from those. */
+const maxSeq=js=>(js||[]).reduce((m,j)=>j.v===2&&j.seq>m?j.seq:m,-1);
+function addHist(h,js){(js||[]).filter(j=>j.v===2).forEach(j=>{h[jkey(j)]={amt:j.amt,ts:j.ts,seq:j.seq}})}
+function addSnap(sn,ts,bal,seq){if(bal==null)return;const l=sn[sn.length-1];
+  if(l&&l.bal===bal&&l.seq===seq){l.ts=ts;return}sn.push({ts,bal,seq});if(sn.length>600)sn.splice(0,sn.length-600)}
+function keepHistory(prev,c){
+  const h={...(prev.hist||{})};const sn=(prev.snaps||[]).slice();
+  if(!prev.snaps&&prev.balance!=null){addHist(h,prev.journeys);addSnap(sn,prev.readAt||c.readAt,prev.balance,maxSeq(prev.journeys))}
+  addHist(h,c.journeys);addSnap(sn,c.readAt,c.balance,maxSeq(c.journeys));
+  c.hist=h;c.snaps=sn;
+}
+/** every fare / top-up with the balance after it */
+function ledger(c){
+  let snaps=(c.snaps||[]).slice();
+  if(!snaps.length&&c.balance!=null)snaps=[{ts:c.readAt||Date.now(),bal:c.balance,seq:maxSeq(c.journeys)}];
+  if(!snaps.length)return null;
+  snaps.sort((a,b)=>a.ts-b.ts);
+  const h={...(c.hist||{})};addHist(h,c.journeys);
+  const fares=Object.entries(h).map(([k,v])=>({k,...v})).filter(f=>f.amt>0).sort((a,b)=>a.seq-b.seq);
+  const tops=(c.topups||[]).slice().sort((a,b)=>a.ts-b.ts);
+  const known=c.known||{};
+  const fRow=f=>({ts:f.ts,amt:-f.amt,what:'Fare',sub:known[f.k]?'logged ✓':'not logged yet'});
+  const tRow=t=>({ts:t.ts,amt:t.amt,what:'Top-up',sub:'recorded by you'});
+  const rows=[];
+  // fares the chip still had before Kharcha's first read
+  const s0=snaps[0];const pre=fares.filter(f=>f.seq<=s0.seq);
+  const preT=pre.length?tops.filter(t=>t.ts>=pre[0].ts&&t.ts<=s0.ts):[];
+  pre.forEach(f=>rows.push(fRow(f)));preT.forEach(t=>rows.push(tRow(t)));
+  const open=Math.round((s0.bal+pre.reduce((x,f)=>x+f.amt,0)-preT.reduce((x,t)=>x+t.amt,0))*100)/100;
+  const openTs=pre.length?pre[0].ts:s0.ts;
+  for(let i=0;i+1<snaps.length;i++){
+    const a=snaps[i],b=snaps[i+1];
+    const F=fares.filter(f=>f.seq>a.seq&&f.seq<=b.seq),T=tops.filter(t=>t.ts>a.ts&&t.ts<=b.ts);
+    const ev=[...F.map(fRow),...T.map(tRow)].sort((x,y)=>x.ts-y.ts);
+    const diff=Math.round(((b.bal-a.bal)-(T.reduce((x,t)=>x+t.amt,0)-F.reduce((x,f)=>x+f.amt,0)))*100)/100;
+    if(diff<-0.005)ev.push({ts:b.ts,amt:diff,what:'Fares (not itemised)',sub:'more trips than the chip remembers'});
+    else if(diff>0.005)ev.push({ts:b.ts,amt:diff,what:'Top-up',sub:'not recorded in Kharcha'});
+    rows.push(...ev);
+  }
+  rows.sort((x,y)=>x.ts-y.ts);
+  let bal=open;rows.forEach(r=>{bal=Math.round((bal+r.amt)*100)/100;r.bal=bal});
+  return{open,openTs,rows,start:ym(openTs)};
+}
+let stMonth=null;
+function statementFor(c,m){
+  const L=ledger(c);if(!L)return null;
+  const [y,mm]=m.split('-').map(Number);const m0=new Date(y,mm-1,1).getTime(),m1=new Date(y,mm,1).getTime();
+  const before=L.rows.filter(r=>r.ts<m0),inM=L.rows.filter(r=>r.ts>=m0&&r.ts<m1);
+  const opening=before.length?before[before.length-1].bal:L.open;
+  const openTs=before.length||L.openTs<m0?m0:L.openTs;
+  const closing=inM.length?inM[inM.length-1].bal:opening;
+  const fares=-inM.filter(r=>r.amt<0).reduce((x,r)=>x+r.amt,0),tops=inM.filter(r=>r.amt>0).reduce((x,r)=>x+r.amt,0);
+  return{L,m,rows:inM,opening,openTs,closing,closeTs:inM.length?inM[inM.length-1].ts:openTs,fares,tops};
+}
+const n2=v=>(Math.round(v*100)/100).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const dmon=ts=>new Date(ts).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+function statementHtml(c){
+  const cur=ym(Date.now());const L=ledger(c);if(!L)return'';
+  if(!stMonth||stMonth>cur||stMonth<L.start)stMonth=cur;
+  const S2=statementFor(c,stMonth);
+  const [y,mm]=stMonth.split('-').map(Number);
+  const prevM=ym(new Date(y,mm-2,1)),nextM=ym(new Date(y,mm,1));
+  const canP=prevM>=L.start,canN=nextM<=cur;
+  const row=r=>`<div class="str"><span class="d">${esc(dmon(r.ts))}</span><span><b>${esc(r.what)}</b><small>${esc(r.sub)}</small></span><span class="${r.amt<0?'dr':'cr'}">${r.amt<0?'−':'+'}${n2(Math.abs(r.amt))}</span><span class="bl">${n2(r.bal)}</span></div>`;
+  return `<div class="card stc">
+    <div class="sth"><div><h4>Statement</h4><span>${esc(cardName(c))}${c.pan?' · ···· '+esc(c.pan.slice(-4)):''}</span></div>
+      <div class="stm"><button data-stm="${prevM}"${canP?'':' disabled'} aria-label="Previous month">‹</button><b>${esc(new Date(y,mm-1,1).toLocaleDateString('en-IN',{month:'short',year:'numeric'}))}</b><button data-stm="${nextM}"${canN?'':' disabled'} aria-label="Next month">›</button></div></div>
+    <div class="sts"><div><small>OPENING · ${esc(dmon(S2.openTs)).toUpperCase()}</small><b>${inr(S2.opening)}</b></div><div><small>CLOSING${stMonth===cur?' · NOW':''}</small><b>${inr(S2.closing)}</b></div>
+      <div><small>FARES</small><b class="dr">− ${inr(S2.fares)}</b></div><div><small>TOP-UPS</small><b class="cr">+ ${inr(S2.tops)}</b></div></div>
+    <div class="stt"><div class="str sthd"><span>DATE</span><span>DETAILS</span><span>AMOUNT</span><span>BALANCE</span></div>
+      <div class="str sto"><span>${esc(dmon(S2.openTs))}</span><span>Opening balance</span><span></span><span class="bl">${n2(S2.opening)}</span></div>
+      ${S2.rows.map(row).join('')||'<div class="str"><span></span><span class="muted">No fares or top-ups this month</span><span></span><span></span></div>'}
+      <div class="str sto"><span>${esc(dmon(S2.closeTs))}</span><span>Closing balance</span><span></span><span class="bl">${n2(S2.closing)}</span></div></div>
+    <div class="cact"><button class="btn" data-stpdf="${esc(c.id)}">Download PDF</button><button class="btn" data-stshare="${esc(c.id)}">Share</button></div>
+    <div class="small muted" style="text-align:center;margin-top:10px">Built from every tap Kharcha has seen. The chip only remembers its last 3 taps, so tap your card every day or two to keep each fare listed.</div>
+  </div>`;
+}
+function statementDoc(c){
+  const S2=statementFor(c,stMonth||ym(Date.now()));if(!S2)return'';
+  const [y,mm]=S2.m.split('-').map(Number);const mon=new Date(y,mm-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(cardName(c))+' statement '+esc(mon)+'</title><style>'
+  +'body{font:13px -apple-system,system-ui,sans-serif;color:#111;margin:26px}h1{font-size:20px;margin:0 0 2px}.sub{color:#666;margin-bottom:16px}'
+  +'.g{display:flex;gap:10px;margin-bottom:14px}.g div{flex:1;border:1px solid #e3e3e3;border-radius:10px;padding:8px 10px}.g small{display:block;color:#666;font-size:10px;text-transform:uppercase}.g b{font-size:16px}'
+  +'table{width:100%;border-collapse:collapse}th{text-align:left;font-size:11px;color:#666;text-transform:uppercase;border-bottom:1px solid #ddd;padding:6px 4px}'
+  +'td{padding:6px 4px;border-bottom:1px solid #f0f0f0}.r{text-align:right}.o td{font-weight:700;background:#f7f7f7}.dr{color:#b42318}.cr{color:#0b6b47}'
+  +'@media print{body{margin:12mm}}</style></head><body>'
+  +'<h1>'+esc(cardName(c))+' – statement</h1><div class="sub">'+(c.pan?'Card ···· '+esc(c.pan.slice(-4))+' · ':'')+esc(mon)+'</div>'
+  +'<div class="g"><div><small>Opening</small><b>'+inr(S2.opening)+'</b></div><div><small>Fares</small><b class="dr">− '+inr(S2.fares)+'</b></div><div><small>Top-ups</small><b class="cr">+ '+inr(S2.tops)+'</b></div><div><small>Closing</small><b>'+inr(S2.closing)+'</b></div></div>'
+  +'<table><tr><th>Date</th><th>Details</th><th class="r">Amount</th><th class="r">Balance</th></tr>'
+  +'<tr class="o"><td>'+esc(dmon(S2.openTs))+'</td><td>Opening balance</td><td></td><td class="r">'+n2(S2.opening)+'</td></tr>'
+  +S2.rows.map(r=>'<tr><td>'+esc(dmon(r.ts))+'</td><td>'+esc(r.what)+' <span style="color:#888">('+esc(r.sub)+')</span></td><td class="r '+(r.amt<0?'dr':'cr')+'">'+(r.amt<0?'−':'+')+n2(Math.abs(r.amt))+'</td><td class="r">'+n2(r.bal)+'</td></tr>').join('')
+  +'<tr class="o"><td>'+esc(dmon(S2.closeTs))+'</td><td>Closing balance</td><td></td><td class="r">'+n2(S2.closing)+'</td></tr></table>'
+  +'<p style="color:#888;font-size:11px;margin-top:14px">Made by Kharcha from card reads. Read only – Kharcha cannot change the card balance.</p>'
+  +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print()},500)}</scr'+'ipt></body></html>';
+}
+function statementText(c){
+  const S2=statementFor(c,stMonth||ym(Date.now()));if(!S2)return'';
+  const [y,mm]=S2.m.split('-').map(Number);const mon=new Date(y,mm-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  return cardName(c)+(c.pan?' ···· '+c.pan.slice(-4):'')+' – '+mon+'\n'
+  +'Opening '+inr(S2.opening)+' · Fares −'+inr(S2.fares)+' · Top-ups +'+inr(S2.tops)+' · Closing '+inr(S2.closing)+'\n\n'
+  +S2.rows.map(r=>dmon(r.ts)+'  '+r.what+'  '+(r.amt<0?'−':'+')+n2(Math.abs(r.amt))+'  bal '+n2(r.bal)).join('\n');
+}
+function statementPdf(id){const c=loadCards().list[id];if(!c)return;const html=statementDoc(c);const fn=(cardName(c)+'-statement-'+(stMonth||ym(Date.now()))).replace(/\s+/g,'-');
+  if(APP&&APP.openFile){APP.openFile(fn+'.html',b64of(html),'text/html');toast('Opening – choose Print → Save as PDF');return}
+  const blob=new Blob([html],{type:'text/html'});const w=window.open(URL.createObjectURL(blob),'_blank');if(!w)deliver(fn+'.html',b64of(html),'text/html',blob)}
+function statementShare(id){const c=loadCards().list[id];if(!c)return;const t=statementText(c);
+  if(APP&&APP.shareFile){APP.shareFile((cardName(c)+'-statement.txt').replace(/\s+/g,'-'),b64of(t),'text/plain','');return}
+  if(navigator.share)navigator.share({text:t}).catch(()=>{});else{try{navigator.clipboard.writeText(t);toast('Copied ✓')}catch(e){}}}
+
 /** spent since the previous tap, allowing for top-ups the user recorded */
 function spendInfo(c){
   if(c.prevBalance==null||c.balance==null)return null;
@@ -498,6 +628,7 @@ function storeCardRead(res){
     prevBalance:(prev.balance!=null?prev.balance:null),
     prevReadAt:(prev.readAt||null)};
   if(prev.readAt&&c.readAt<prev.readAt)return id; // an older read than what we have
+  keepHistory(prev,c);
   // several taps while Kharcha was closed: keep counting spend from the first of them
   if(res.bg&&prev.bg&&prev.prevBalance!=null){c.prevBalance=prev.prevBalance;c.prevReadAt=prev.prevReadAt}
   store.list[id]=c;saveCards(store);
@@ -587,7 +718,7 @@ function cardDetail(c){
   if(todo.length)act=`<button class="btn pri" data-imp="${esc(c.id)}">${todo.length>1?'Add '+todo.length+' fares · '+inr(todoAmt):'Add '+inr(todoAmt)+' fare'} to expenses</button>`;
   else if(!js.length&&si&&si.spent>0)act=`<button class="btn pri" data-spend="${esc(c.id)}">Log ${inr(si.spent)} travel</button>`;
   else if(js.length)act=`<div class="small muted" style="text-align:center;margin-top:10px">All fares are logged ✓</div>`;
-  return `${pill?`<div class="cpill">${esc(pill)}</div>`:''}${list}${act}`;
+  return `${pill?`<div class="cpill">${esc(pill)}</div>`:''}${act}${statementHtml(c)}`;
 }
 function vCard(){
   const cards=cardList();
@@ -637,6 +768,9 @@ function vCard(){
     const t=ev.target.closest('[data-top]');if(t)return topUpSheet(t.dataset.top);
     const sp=ev.target.closest('[data-spend]');if(sp)return logSpend(sp.dataset.spend);
     const im=ev.target.closest('[data-imp]');if(im)return importJourneys(im.dataset.imp);
+    const sm=ev.target.closest('[data-stm]');if(sm){if(!sm.disabled){stMonth=sm.dataset.stm;const d=$('#cDetail');const cc=loadCards().list[selCard];if(d&&cc)d.innerHTML=cardDetail(cc)}return}
+    const sp2=ev.target.closest('[data-stpdf]');if(sp2)return statementPdf(sp2.dataset.stpdf);
+    const ss=ev.target.closest('[data-stshare]');if(ss)return statementShare(ss.dataset.stshare);
     const s=ev.target.closest('[data-sel]');if(s&&s.dataset.sel!==selCard){selCard=s.dataset.sel;render()}});
 }
 /* the journey list scrolls on its own; size it to whatever is left above the button and nav */
