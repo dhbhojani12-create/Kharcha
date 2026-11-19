@@ -213,6 +213,8 @@ html[data-theme="dark"] .ccard.on{background:#17201d;border:1px solid #26302c}
 .sts b{font-size:17px}
 .stc .dr{color:var(--red,#d0453a)}.stc .cr{color:var(--okink,#0b6b47)}
 .stt{margin:12px -14px 0;border-top:1px solid var(--line)}
+.stsc{max-height:46vh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.stsc .str:last-child{border-bottom:0}
 .str{display:grid;grid-template-columns:52px 1fr 68px 70px;gap:6px;padding:9px 14px;align-items:center;font-size:13px;border-bottom:1px solid var(--line)}
 .str span:nth-child(n+3){text-align:right;font-variant-numeric:tabular-nums}
 .str .d{color:var(--mut);font-size:12px}.str b{font-weight:600}.str small{display:block;color:var(--mut);font-size:11px}
@@ -556,9 +558,9 @@ function statementHtml(c){
     <div class="sts"><div><small>OPENING · ${esc(dmon(S2.openTs)).toUpperCase()}</small><b>${inr(S2.opening)}</b></div><div><small>CLOSING${stMonth===cur?' · NOW':''}</small><b>${inr(S2.closing)}</b></div>
       <div><small>FARES</small><b class="dr">− ${inr(S2.fares)}</b></div><div><small>TOP-UPS</small><b class="cr">+ ${inr(S2.tops)}</b></div></div>
     <div class="stt"><div class="str sthd"><span>DATE</span><span>DETAILS</span><span>AMOUNT</span><span>BALANCE</span></div>
-      <div class="str sto"><span>${esc(dmon(S2.openTs))}</span><span>Opening balance</span><span></span><span class="bl">${n2(S2.opening)}</span></div>
+      <div class="stsc" id="stsc"><div class="str sto"><span>${esc(dmon(S2.openTs))}</span><span>Opening balance</span><span></span><span class="bl">${n2(S2.opening)}</span></div>
       ${S2.rows.map(row).join('')||'<div class="str"><span></span><span class="muted">No fares or top-ups this month</span><span></span><span></span></div>'}
-      <div class="str sto"><span>${esc(dmon(S2.closeTs))}</span><span>Closing balance</span><span></span><span class="bl">${n2(S2.closing)}</span></div></div>
+      <div class="str sto"><span>${esc(dmon(S2.closeTs))}</span><span>Closing balance</span><span></span><span class="bl">${n2(S2.closing)}</span></div></div></div>
     <div class="cact"><button class="btn" data-stpdf="${esc(c.id)}">Download PDF</button><button class="btn" data-stshare="${esc(c.id)}">Share</button></div>
     <div class="small muted" style="text-align:center;margin-top:10px">Built from every tap Kharcha has seen. The chip only remembers its last 3 taps, so tap your card every day or two to keep each fare listed.</div>
   </div>`;
@@ -768,13 +770,15 @@ function vCard(){
     const t=ev.target.closest('[data-top]');if(t)return topUpSheet(t.dataset.top);
     const sp=ev.target.closest('[data-spend]');if(sp)return logSpend(sp.dataset.spend);
     const im=ev.target.closest('[data-imp]');if(im)return importJourneys(im.dataset.imp);
-    const sm=ev.target.closest('[data-stm]');if(sm){if(!sm.disabled){stMonth=sm.dataset.stm;const d=$('#cDetail');const cc=loadCards().list[selCard];if(d&&cc)d.innerHTML=cardDetail(cc)}return}
+    const sm=ev.target.closest('[data-stm]');if(sm){if(!sm.disabled){stMonth=sm.dataset.stm;const d=$('#cDetail');const cc=loadCards().list[selCard];if(d&&cc){d.innerHTML=cardDetail(cc);fitJourneys()}}return}
     const sp2=ev.target.closest('[data-stpdf]');if(sp2)return statementPdf(sp2.dataset.stpdf);
     const ss=ev.target.closest('[data-stshare]');if(ss)return statementShare(ss.dataset.stshare);
     const s=ev.target.closest('[data-sel]');if(s&&s.dataset.sel!==selCard){selCard=s.dataset.sel;render()}});
 }
 /* the journey list scrolls on its own; size it to whatever is left above the button and nav */
 function fitJourneys(){
+  const sc=$('#stsc');if(sc){const top=sc.getBoundingClientRect().top;sc.style.maxHeight=Math.max(220,Math.round(innerHeight-top-150))+'px';
+    if(stMonth===ym(Date.now()))sc.scrollTop=sc.scrollHeight}
   const l=$('#cjl');if(!l)return;
   l.style.maxHeight='none';
   const top=l.getBoundingClientRect().top+scrollY;
