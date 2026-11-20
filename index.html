@@ -492,6 +492,7 @@ const cardName=c=>c.name||c.cardType||'Travel card';
 const maxSeq=js=>(js||[]).reduce((m,j)=>j.v===2&&j.seq>m?j.seq:m,-1);
 function addHist(h,js){(js||[]).filter(j=>j.v===2).forEach(j=>{h[jkey(j)]={amt:j.amt,ts:j.ts,seq:j.seq}})}
 function addSnap(sn,ts,bal,seq){if(bal==null)return;const l=sn[sn.length-1];
+  if(seq<0&&l)seq=l.seq; // read without a journey log: no newer fares seen
   if(l&&l.bal===bal&&l.seq===seq){l.ts=ts;return}sn.push({ts,bal,seq});if(sn.length>600)sn.splice(0,sn.length-600)}
 function keepHistory(prev,c){
   const h={...(prev.hist||{})};const sn=(prev.snaps||[]).slice();
@@ -515,21 +516,31 @@ function ledger(c){
   // fares the chip still had before Kharcha's first read
   const s0=snaps[0];const pre=fares.filter(f=>f.seq<=s0.seq);
   const preT=pre.length?tops.filter(t=>t.ts>=pre[0].ts&&t.ts<=s0.ts):[];
-  pre.forEach(f=>rows.push(fRow(f)));preT.forEach(t=>rows.push(tRow(t)));
+  pre.forEach(f=>rows.push({...fRow(f),iv:-1}));preT.forEach(t=>rows.push({...tRow(t),iv:-1}));
   const open=Math.round((s0.bal+pre.reduce((x,f)=>x+f.amt,0)-preT.reduce((x,t)=>x+t.amt,0))*100)/100;
   const openTs=pre.length?pre[0].ts:s0.ts;
   for(let i=0;i+1<snaps.length;i++){
     const a=snaps[i],b=snaps[i+1];
     const F=fares.filter(f=>f.seq>a.seq&&f.seq<=b.seq),T=tops.filter(t=>t.ts>a.ts&&t.ts<=b.ts);
-    const ev=[...F.map(fRow),...T.map(tRow)].sort((x,y)=>x.ts-y.ts);
+    const ev=[...F.map(fRow),...T.map(tRow)].sort((x,y)=>x.ts-y.ts);ev.forEach(e=>e.iv=i);
     const diff=Math.round(((b.bal-a.bal)-(T.reduce((x,t)=>x+t.amt,0)-F.reduce((x,f)=>x+f.amt,0)))*100)/100;
-    if(diff<-0.005)ev.push({ts:b.ts,amt:diff,what:'Fares (not itemised)',sub:'more trips than the chip remembers'});
-    else if(diff>0.005)ev.push({ts:b.ts,amt:diff,what:'Top-up',sub:'not recorded in Kharcha'});
+    if(diff<-0.005)ev.push({ts:b.ts,amt:diff,what:'Fares (not itemised)',sub:'more trips than the chip remembers',unit:true,iv:i});
+    else if(diff>0.005)ev.push({ts:b.ts,amt:diff,what:'Top-up',sub:'not recorded in Kharcha',iv:i});
     rows.push(...ev);
   }
   rows.sort((x,y)=>x.ts-y.ts);
   let bal=open;rows.forEach(r=>{bal=Math.round((bal+r.amt)*100)/100;r.bal=bal});
-  return{open,openTs,rows,start:ym(openTs)};
+  const lastIv=snaps.length-2;
+  const lastSpent=Math.round(-rows.filter(x=>x.iv===lastIv&&x.amt<0).reduce((s2,x)=>s2+x.amt,0)*100)/100;
+  return{open,openTs,rows,start:ym(openTs),lastSpent,lastTs:snaps[snaps.length-1].ts};
+}
+/** travel spend the card shows but that isn't in expenses yet: the 'not itemised' gaps (single fares have their own button) */
+function unloggedTravel(c){
+  const L=ledger(c);if(!L)return{amt:0,upTo:0,L:null};
+  let since=c.unitLoggedTs;
+  if(since==null){since=0;S.expenses.forEach(e=>{if(e.src==='nfc'&&e.payee===cardName(c)&&/^Card (spend|fares)/.test(e.note||'')&&e.ts>since)since=e.ts})}
+  const rs=L.rows.filter(x=>x.unit&&x.ts>since);
+  return{amt:Math.round(-rs.reduce((s2,x)=>s2+x.amt,0)*100)/100,upTo:rs.length?Math.max(...rs.map(x=>x.ts)):since,L};
 }
 let stMonth=null;
 function statementFor(c,m){
@@ -676,18 +687,17 @@ function importJourneys(id){
 }
 function logSpend(id){
   const s=loadCards();const c=s.list[id];if(!c)return;
-  const si=spendInfo(c);if(!si||si.spent<=0)return;
-  S.expenses.push({id:uid(),amt:si.spent,cat:S.cats.some(x=>x.id==='travel')?'travel':'other',
-    payee:cardName(c),note:'Card spend since last tap',mode:'Card',ts:Date.now(),src:'nfc'});
-  c.prevBalance=c.balance;c.prevReadAt=c.readAt;c.bg=false;saveCards(s);save();render();toast('Added '+inr(si.spent)+' travel ✓');
+  const u=unloggedTravel(c);if(u.amt<=0)return;
+  S.expenses.push({id:uid(),amt:u.amt,cat:S.cats.some(x=>x.id==='travel')?'travel':'other',
+    payee:cardName(c),note:'Card fares (not itemised)',mode:'Card',ts:u.upTo||Date.now(),src:'nfc'});
+  c.unitLoggedTs=u.upTo;c.prevBalance=c.balance;c.prevReadAt=c.readAt;c.bg=false;saveCards(s);save();render();toast('Added '+inr(u.amt)+' travel ✓');
 }
 function cardPill(c){
-  const si=spendInfo(c);
   const pend=(c.topups||[]).filter(t=>t.ts>(c.readAt||0)).reduce((s,t)=>s+t.amt,0);
   if(pend>0)return`+${inr(pend)} topped up – tap to refresh`;
-  if(si&&si.unexplained)return`Balance went up ${inr(-si.spent)} – record the top-up`;
-  if(si&&si.spent>0)return`Spent ${inr(si.spent)} since last tap`;
-  if(si&&si.topped>0)return`Topped up ${inr(si.topped)}`;
+  const u=unloggedTravel(c);const sp=u.L?u.L.lastSpent:0;
+  if(u.amt>0)return`${inr(u.amt)} of travel not logged yet`;
+  if(sp>0)return`Spent ${inr(sp)} since last tap · logged ✓`;
   return'';
 }
 function miniCard(c,on){
@@ -718,7 +728,7 @@ function cardDetail(c){
   }
   let act='';
   if(todo.length)act=`<button class="btn pri" data-imp="${esc(c.id)}">${todo.length>1?'Add '+todo.length+' fares · '+inr(todoAmt):'Add '+inr(todoAmt)+' fare'} to expenses</button>`;
-  else if(!js.length&&si&&si.spent>0)act=`<button class="btn pri" data-spend="${esc(c.id)}">Log ${inr(si.spent)} travel</button>`;
+  else if(unloggedTravel(c).amt>0)act=`<button class="btn pri" data-spend="${esc(c.id)}">Log ${inr(unloggedTravel(c).amt)} travel</button>`;
   else if(js.length)act=`<div class="small muted" style="text-align:center;margin-top:10px">All fares are logged ✓</div>`;
   return `${pill?`<div class="cpill">${esc(pill)}</div>`:''}${act}${statementHtml(c)}`;
 }
