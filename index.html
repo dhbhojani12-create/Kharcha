@@ -506,6 +506,7 @@ function ledger(c){
   if(!snaps.length&&c.balance!=null)snaps=[{ts:c.readAt||Date.now(),bal:c.balance,seq:maxSeq(c.journeys)}];
   if(!snaps.length)return null;
   snaps.sort((a,b)=>a.ts-b.ts);
+  for(let i=1;i<snaps.length;i++)if(snaps[i].seq<0)snaps[i]={...snaps[i],seq:snaps[i-1].seq};
   const h={...(c.hist||{})};addHist(h,c.journeys);
   const fares=Object.entries(h).map(([k,v])=>({k,...v})).filter(f=>f.amt>0).sort((a,b)=>a.seq-b.seq);
   const tops=(c.topups||[]).slice().sort((a,b)=>a.ts-b.ts);
