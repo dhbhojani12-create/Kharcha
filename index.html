@@ -492,7 +492,7 @@ const cardName=c=>c.name||c.cardType||'Travel card';
 const maxSeq=js=>(js||[]).reduce((m,j)=>j.v===2&&j.seq>m?j.seq:m,-1);
 function addHist(h,js){(js||[]).filter(j=>j.v===2).forEach(j=>{h[jkey(j)]={amt:j.amt,ts:j.ts,seq:j.seq}})}
 function addSnap(sn,ts,bal,seq){if(bal==null)return;const l=sn[sn.length-1];
-  if(seq<0&&l)seq=l.seq; // read without a journey log: no newer fares seen
+  if(l&&seq<l.seq)seq=l.seq; // the counter only goes up; a read that lists older/no entries keeps the last one
   if(l&&l.bal===bal&&l.seq===seq){l.ts=ts;return}sn.push({ts,bal,seq});if(sn.length>600)sn.splice(0,sn.length-600)}
 function keepHistory(prev,c){
   const h={...(prev.hist||{})};const sn=(prev.snaps||[]).slice();
@@ -520,13 +520,25 @@ function ledger(c){
   pre.forEach(f=>rows.push({...fRow(f),iv:-1}));preT.forEach(t=>rows.push({...tRow(t),iv:-1}));
   const open=Math.round((s0.bal+pre.reduce((x,f)=>x+f.amt,0)-preT.reduce((x,t)=>x+t.amt,0))*100)/100;
   const openTs=pre.length?pre[0].ts:s0.ts;
+  // Each fare is placed once, in the first card read where the balance had gone down enough to
+  // include it (a fare can be seen on the chip a read or two after it happened). Whatever drop
+  // is left over is "not itemised"; a rise with no recorded top-up is an unrecorded top-up.
+  const q=fares.filter(f=>f.seq>s0.seq);let qi=0;
+  const day0=t=>{const d=new Date(t);return new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime()};
   for(let i=0;i+1<snaps.length;i++){
     const a=snaps[i],b=snaps[i+1];
-    const F=fares.filter(f=>f.seq>a.seq&&f.seq<=b.seq),T=tops.filter(t=>t.ts>a.ts&&t.ts<=b.ts);
+    const T=tops.filter(t=>t.ts>a.ts&&t.ts<=b.ts),topSum=T.reduce((x,t)=>x+t.amt,0);
+    const drop=Math.round((a.bal+topSum-b.bal)*100)/100;
+    const F=[];
+    if(drop>0.005){let left=drop;
+      while(qi<q.length&&q[qi].ts<=b.ts&&q[qi].amt<=left+0.005){F.push(q[qi]);left-=q[qi].amt;qi++}}
+    else if(drop<-0.005){
+      while(qi<q.length&&q[qi].ts<=b.ts&&q[qi].ts>=day0(a.ts)){F.push(q[qi]);qi++}}
     const ev=[...F.map(fRow),...T.map(tRow)].sort((x,y)=>x.ts-y.ts);ev.forEach(e=>e.iv=i);
-    const diff=Math.round(((b.bal-a.bal)-(T.reduce((x,t)=>x+t.amt,0)-F.reduce((x,f)=>x+f.amt,0)))*100)/100;
-    if(diff<-0.005)ev.push({ts:b.ts,amt:diff,what:'Fares (not itemised)',sub:'more trips than the chip remembers',unit:true,iv:i});
-    else if(diff>0.005)ev.push({ts:b.ts,amt:diff,what:'Top-up',sub:'not recorded in Kharcha',iv:i});
+    const fSum=F.reduce((x,f)=>x+f.amt,0);
+    const rest=Math.round((drop-fSum)*100)/100;
+    if(rest>0.005)ev.push({ts:b.ts,amt:-rest,what:'Fares (not itemised)',sub:'trips the chip didn\'t list',unit:true,iv:i});
+    else if(rest<-0.005)ev.push({ts:b.ts,amt:-rest,what:'Top-up',sub:'not recorded in Kharcha',iv:i});
     rows.push(...ev);
   }
   rows.sort((x,y)=>x.ts-y.ts);
