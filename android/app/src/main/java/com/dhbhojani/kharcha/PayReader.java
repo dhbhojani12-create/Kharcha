@@ -127,10 +127,20 @@ public class PayReader extends AccessibilityService {
         for (int i = 0; i < n.getChildCount(); i++) collect(n.getChild(i), out, depth + 1);
     }
 
+    /** buttons and labels on payment screens that are never a person or shop name */
+    static final Pattern JUNK = Pattern.compile(
+            "\\b(query|queries|inquiry|enquiry|enquiries|raise|help|support|contact|receipt|details?|retry|report|problem|issues?"
+            + "|dispute|refund|feedback|download|view|share|rate|invite|offers?|rewards?|cashback|history|balance|statement"
+            + "|transactions?|payments?|amount|pin|upi|done|okay|verify|verified|secure|safe|scan|request|remind|split|add|note"
+            + "|tag|category|call|chat|faq|terms|policy|status|processing|pending|failed|successful|success|again|try|learn|know"
+            + "|tap|click|here|check|explore|manage|settings|account|wallet|card|bill|recharge|reference|ref|id|time|date)\\b",
+            Pattern.CASE_INSENSITIVE);
+
     static boolean isName(String l) {
         String s = l.trim();
         if (!NAME.matcher(s).matches()) return false;
         if (STOP.contains(s.toLowerCase())) return false;
+        if (JUNK.matcher(s).find()) return false;
         if (s.replaceAll("[^A-Za-z]", "").length() < 3) return false;
         if (BANKISH.matcher(s).find()) return false;
         if (s.toLowerCase().startsWith("powered")) return false;
