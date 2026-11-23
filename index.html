@@ -226,6 +226,17 @@ html[data-theme="dark"] .ccard.on{background:#17201d;border:1px solid #26302c}
 .jrow .t b{display:block;font-size:14.5px;font-weight:600}
 .jrow .t small{display:block;color:var(--mut);font-size:12.5px}
 
+/* ---------- fixed top, only the list scrolls ---------- */
+body.fixed{overflow:hidden;padding-bottom:0}
+body.fixed main#view{height:calc(100dvh - 92px - env(safe-area-inset-bottom));display:flex;flex-direction:column;overflow:hidden}
+.scr{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;margin:0 -18px;padding:0 18px 16px}
+.scr>.day:first-child,.scr>.card:first-child,.scr>.ghead:first-child{margin-top:8px}
+.scr .stsc{max-height:none!important;overflow:visible}
+body.fixed #cardsV{flex:1;min-height:0;display:flex;flex-direction:column}
+body.fixed .hero{gap:8px;padding:16px 18px}body.fixed .hero .big{font-size:38px}
+.fill{flex:1;min-height:0;display:flex;flex-direction:column;margin-bottom:0}
+.fill .stt{flex:1;min-height:0;display:flex;flex-direction:column}
+.fill .stsc{flex:1;min-height:0;max-height:none!important;overflow-y:auto}
 /* ---------- blue & white ---------- */
 html:not([data-theme="dark"]) .hero,.hero{background:linear-gradient(140deg,#1e5eff,#0b3bb8);border:0;box-shadow:0 12px 28px rgba(30,94,255,.25)}
 html[data-theme="dark"] .hero{background:linear-gradient(140deg,#1a3a8f,#132a63)}
@@ -423,7 +434,7 @@ function addSheet(e){
   ${catGrid(x.cat,'fCats')}
   <div class="lab">Details</div>
   <input id="fPayee" placeholder="Paid to" value="${esc(x.payee)}" style="margin-bottom:8px">
-  ${x.id&&isUpi(x.payee)?`<button type="button" class="lnk" id="fName" style="margin:0 2px 10px">${S.names[key(x.payee)]?'Rename':'Name'} this payee${S.names[key(x.payee)]?' ('+esc(S.names[key(x.payee)])+')':''} ›</button>`:''}
+  ${x.id&&isUpi(x.payee)?`<button type="button" class="lnk" id="fName" style="margin:0 2px 10px">${S.names[key(x.payee)]?'Rename this payee ('+esc(S.names[key(x.payee)])+')':'Optional: name this payee (for shops you pay often)'} ›</button>`:''}
   <input id="fNote" placeholder="Note (optional)" style="margin-bottom:8px">
   <input id="fTs" type="datetime-local" value="${dtLocal(x.ts)}" aria-label="Date and time">
   <button class="btn pri" id="fSave">Save</button>
@@ -471,6 +482,8 @@ $('#bar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)
   if(b.dataset.t==='add'){addSheet();return}
   tab=b.dataset.t;render();scrollTo(0,0)});
 function render(){applyTheme();
+  document.body.classList.toggle('fixed',['home','reports','money','card'].includes(tab));
+  window.scrollTo(0,0);
   document.querySelectorAll('#bar button').forEach(b=>b.classList.toggle('on',(b.dataset.t===tab||(tab==='export'&&b.dataset.t==='reports'))&&b.dataset.t!=='add'));
   ({home:vHome,reports:vReports,card:vCard,export:vExport,more:vMore,money:vMoney})[tab]()}
 
@@ -494,7 +507,7 @@ function nameOf(e){
   const p=e.payee||'';const k=key(p);
   if(p&&S.names[k])return{n:S.names[k],c:null,need:false};
   const b=brandOf(p);if(b)return{n:b.n,c:b.c,need:false};
-  if(isUpi(p))return{n:e.note?capWord(e.note):cat(e.cat).name,c:null,need:true,id:p};
+  if(isUpi(p))return{n:e.note?capWord(e.note):cat(e.cat).name,c:null,need:false,id:p};
   if(p)return{n:p,c:null,need:false};
   return{n:e.note?capWord(e.note):cat(e.cat).name,c:null,need:false};
 }
@@ -531,7 +544,7 @@ const isTrip=e=>e.src==='nfc'&&e.mode==='Card';
 function itemRow(e){const c=cat(e.cat);const nm=nameOf(e);
   const bits=[c.name];if(e.note&&nm.n.toLowerCase()!==e.note.toLowerCase())bits.push(e.note);
   const acc=accName(e);bits.push(acc||e.mode);if(!isTrip(e))bits.push(tm(e.ts));
-  return `<button class="item" data-id="${e.id}">${avatar(e,nm)}<div class="t"><b>${esc(nm.n)}${nm.need?'<span class="ntag">name?</span>':''}</b><small>${esc(bits.join(' · '))}</small></div><div class="a">${inr(e.amt)}</div></button>`}
+  return `<button class="item" data-id="${e.id}">${avatar(e,nm)}<div class="t"><b>${esc(nm.n)}</b><small>${esc(bits.join(' · '))}</small></div><div class="a">${inr(e.amt)}</div></button>`}
 function tripRow(arr,dayKey){const t=arr.reduce((s,e)=>s+e.amt,0);const fares=arr.filter(e=>!/not itemised|since last tap/i.test(e.note||'')).length;
   const card=arr[0].payee||'Metro';
   return `<button class="item" data-trips="${dayKey}|${esc(card)}">${icoHtml('travel')}<div class="t"><b>${esc(/metro/i.test(card)?'Metro':card)}${fares?' · '+fares+' trip'+(fares===1?'':'s'):''}</b><small>Travel · ${esc(card)}</small></div><div class="a">${inr(t)}<small>${arr.length>1?'tap for trips':''}</small></div></button>`}
@@ -577,14 +590,12 @@ function vHome(){
     </div>
     <div class="big g">${inr(Math.round(tot))}</div>
     <div class="pace"><i style="width:${Math.min(tot/ref*100,100).toFixed(1)}%"></i>${prevT?`<u style="left:${Math.min(prevT/ref*100,99.5).toFixed(1)}%"></u>`:''}</div>
-    <div class="pl"><span>${inr(Math.round(perDay))} a day${dnow<dim&&mon.length?' · on pace for '+inr(Math.round(proj/10)*10):''}</span><span>${prevT?MN[(mm+10)%12]+' '+inr(Math.round(prevT)):''}</span></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="pill">Today ${inr(sum(today))}</span><span class="pill">${mon.length} expense${mon.length===1?'':'s'}</span></div>
+    <div class="pl"><span>Today ${inr(Math.round(sum(today)))} · ${inr(Math.round(perDay))} a day${dnow<dim&&mon.length?' · on pace for '+inr(Math.round(proj/10)*10):''}</span><span>${prevT?MN[(mm+10)%12]+' '+inr(Math.round(prevT)):''}</span></div>
   </div>
   ${cs.length?`<div class="hchips">${cs.slice(0,8).map(([c,a])=>`<button data-hc="${c}">${esc((cat(c).emoji||'')+' '+cat(c).name)}<b>${inr(Math.round(a))}</b></button>`).join('')}</div>`:''}
   <div class="quick3"><button class="a" id="qCash">＋ Cash</button>${canVoice?'<button id="qVoice">🎤 Speak</button>':''}<button id="qUpi">＋ UPI</button></div>
   ${needAcc?'<button class="banner" id="hAcc">⚡ Turn on instant capture</button>':''}
-  ${un.length?`<button class="warn" id="hNames"><span>⚠ ${un.length} payee${un.length===1?' has':'s have'} no name yet — name ${un.length===1?'it':'them'} once</span><b>›</b></button>`:''}
-  <div id="hList">${groupList(recent)}</div>`;
+  <div class="scr" id="hList">${groupList(recent)}</div>`;
   if(!canVoice)$('.quick3').style.gridTemplateColumns='1fr 1fr';
   $('#qCash').onclick=()=>addSheet({mode:'Cash'});
   $('#qUpi').onclick=()=>addSheet({mode:'UPI'});
@@ -592,7 +603,6 @@ function vHome(){
   $('#hRep').onclick=()=>{tab='reports';RP.p='month';RP.anchor=Date.now();RP.cat=null;render()};
   document.querySelectorAll('[data-hc]').forEach(b=>b.onclick=()=>{tab='reports';RP.p='month';RP.anchor=Date.now();RP.cat=b.dataset.hc;render();scrollTo(0,0)});
   if(needAcc)$('#hAcc').onclick=()=>{tab='more';render()};
-  const hn=$('#hNames');if(hn)hn.onclick=()=>nameSheet();
   bindItems($('#hList'));
 }
 
@@ -662,7 +672,7 @@ function vReports(){
     <div class="kpi"><div><small>PER DAY</small><b>${inr(Math.round(perDay))}</b></div>
       ${proj!==null&&!RP.cat?`<div><small>${RP.p==='month'?'MONTH':RP.p==='week'?'WEEK':'YEAR'}-END</small><b>~${inr(Math.round(proj/10)*10)}</b></div>`:`<div><small>${RP.cat?'AVERAGE':'BEFORE'}</small><b>${RP.cat?inr(Math.round(tot/Math.max(ex.length,1))):inr(Math.round(ptot))}</b></div>`}
       <div><small>${RP.cat?'TIMES':'EXPENSES'}</small><b>${ex.length}</b></div></div></div>
-  ${ex.length?`
+  <div class="scr" id="rScr">${ex.length?`
   ${ins.length?`<div class="card"><h4>What stood out</h4>${ins.map(([i,t])=>`<div class="ins"><span>${i}</span><span>${t}</span></div>`).join('')}</div>`:''}
   <div class="card"><h4>${RP.p==='year'?'Month by month':'Last 6 '+(RP.p==='week'?'weeks':'months')}</h4><div class="trend">${tr.map(t=>`<div class="${t.cur?'cur':''}"><span class="v">${t.v?(t.v>=1000?(t.v/1000).toFixed(1)+'k':Math.round(t.v)):''}</span><div class="b" style="height:${Math.max(t.v/tmx*92,3).toFixed(0)}px"></div>${esc(t.l)}</div>`).join('')}</div></div>
   ${!RP.cat?`<div class="card"><h4>Categories <span class="small muted" style="font-weight:400">· tap one for its report</span></h4>${cs.map(([c,v],i)=>`<button class="crow" data-rc="${c}"><div class="l"><b>${esc((cat(c).emoji||'')+' '+cat(c).name)}</b><span>${inr(Math.round(v))}${chgHtml(pct(v,pc[c]||0))}</span></div><div class="cbar"><i style="width:${(v/cmx*100).toFixed(1)}%;background:${catColor(c,i)}"></i></div></button>`).join('')}</div>`:''}
@@ -673,7 +683,7 @@ function vReports(){
     <div class="small muted" style="margin-top:8px">${DN[wtop]}s cost you the most — about ${inr(Math.round(wavg[wtop]))} a day</div></div>`:''}
   <div class="card" style="padding:4px 16px"><h4 style="margin:12px 0 2px">${RP.cat?'Expenses':'All expenses'}</h4><div id="rList">${groupList(ex.slice().sort((x,y)=>y.ts-x.ts))}</div></div>
   <button class="btn" id="rExp">Export this as PDF or Excel</button>`
-  :`<div class="empty">Nothing spent ${RP.cat?'on '+esc(c0.name)+' ':''}in ${esc(periodName(RP.p,a))}.</div>`}`;
+  :`<div class="empty">Nothing spent ${RP.cat?'on '+esc(c0.name)+' ':''}in ${esc(periodName(RP.p,a))}.</div>`}</div>`;
   bindPick($('#rPer'),'data-m',v=>{RP.p=v.toLowerCase();render()});
   $('#mPrev').onclick=()=>{RP.anchor=periodRange(RP.p,RP.anchor,-1)[0];render()};
   $('#mNext').onclick=()=>{if(!isCur){RP.anchor=periodRange(RP.p,RP.anchor,1)[0];render()}};
@@ -737,14 +747,14 @@ function vMoney(){
     return `<button class="acc" data-acc="${a.id}"><span class="ai" style="background:${a.type==='cash'?'#e8f5e4':'#e3ecff'}">${a.type==='cash'?'💵':'🏦'}</span><span class="t"><b>${esc(a.type==='cash'?a.name||'Cash in hand':a.name)}</b><small>${a.type==='bank'?(a.last4?'···· '+esc(a.last4):'Bank')+(defBank()===a?' · default for UPI':''):'Cash in hand'}</small></span><span class="v">${inr(b)}${low?'<small>LOW</small>':''}</span></button>`};
   view.innerHTML=`<h2 class="g">Money</h2>
   ${S.accounts.length?`<div class="hero" style="gap:6px"><span class="lbl" style="font-weight:700;letter-spacing:.4px">TOTAL BALANCE</span><div class="big g">${inr(Math.round(total))}</div>
-    <div class="pl" style="justify-content:flex-start;gap:16px"><span>Spent this month ${inr(Math.round(spent))}</span><span>Received ${inr(Math.round(recv))}</span></div></div>
+    <div class="pl" style="justify-content:flex-start;gap:16px"><span>Spent this month ${inr(Math.round(spent))}</span><span>Received ${inr(Math.round(recv))}</span></div></div><div class="scr">
   ${cash.length?`<div class="ghead">Cash</div>${cash.map(row).join('')}`:''}
   ${banks.length?`<div class="ghead">Bank accounts</div>${banks.map(row).join('')}`:''}
   <div class="mgrid"><button id="mIn">＋ Money in</button><button id="mTr">⇄ Transfer</button><button id="mAdd">＋ Add account</button><button id="mFix">✎ Fix a balance</button></div>`
   :`<div class="card"><h4>Track cash and bank balances</h4><div class="small muted">Add your cash in hand and each bank account with today's balance. Every expense then comes out of the right one, and you get a statement for each.</div>
     <button class="btn pri" id="mAdd">＋ Add an account</button>${!cashAcc()?'<button class="btn" id="mCash">＋ Add cash in hand</button>':''}</div>`}
   ${cards.length?`<div class="ghead">Travel cards</div>${cards.map(c=>`<button class="acc" data-card="${esc(c.id)}"><span class="ai" style="background:#e3ecff">🚇</span><span class="t"><b>${esc(cardName(c))}</b><small>${c.pan?'···· '+esc(c.pan.slice(-4))+' · ':''}read ${esc(dayLabel(c.readAt))}</small></span><span class="v">${inr(c.balance)}</span></button>`).join('')}`:''}
-  ${S.accounts.length?'<div class="small muted" style="text-align:center;margin-top:14px">Kharcha can\'t see your bank. Balances follow what you log here — use “Fix a balance” now and then to match your bank app.</div>':''}`;
+  ${S.accounts.length?'<div class="small muted" style="text-align:center;margin-top:14px">Kharcha can\'t see your bank. Balances follow what you log here — use “Fix a balance” now and then to match your bank app.</div></div>':''}`;
   document.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>{MV.acc=b.dataset.acc;MV.month=ym(Date.now());render();scrollTo(0,0)});
   document.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{selCard=b.dataset.card;tab='card';render();scrollTo(0,0)});
   const on=(id,f)=>{const el=$(id);if(el)el.onclick=f};
@@ -768,7 +778,7 @@ function vAccount(a){
   view.innerHTML=`<div class="rhead" style="margin-bottom:8px"><button class="lnk" id="aBack">‹ Money</button><button class="lnk" id="aEdit">Settings</button></div>
   <h2 class="g" style="margin:2px 2px 0">${esc(a.type==='cash'?a.name||'Cash in hand':a.name)}</h2><div class="small muted" style="margin:0 2px">${a.type==='bank'?(a.last4?'···· '+esc(a.last4):'Bank account'):'Cash in hand'} · balance ${inr(bal)}</div>
   ${low?`<div class="lowbar">⚠ Below your ${inr(a.low)} reminder</div>`:''}
-  <div class="card stc"><div class="sth"><h4>Statement</h4>
+  <div class="card stc fill"><div class="sth"><h4>Statement</h4>
     <div class="stm"><button data-am="${prevM}"${prevM>=startM?'':' disabled'}>‹</button><b>${esc(new Date(y,mm-1,1).toLocaleDateString('en-IN',{month:'short',year:'numeric'}))}</b><button data-am="${nextM}"${nextM<=cur?'':' disabled'}>›</button></div></div>
     <div class="sts"><div><small>OPENING · ${esc(dmon(openTs)).toUpperCase()}</small><b>${inr(opening)}</b></div><div><small>CLOSING${MV.month===cur?' · NOW':''}</small><b>${inr(closing)}</b></div>
       <div><small>MONEY OUT</small><b class="dr">− ${inr(out)}</b></div><div><small>MONEY IN</small><b class="cr">+ ${inr(inn)}</b></div></div>
@@ -776,15 +786,15 @@ function vAccount(a){
       <div class="stsc" id="stsc"><div class="str sto"><span>${esc(dmon(openTs))}</span><span>Opening balance</span><span></span><span class="bl">${n2(opening)}</span></div>
       ${rows.map(row).join('')||'<div class="str"><span></span><span class="muted">Nothing this month</span><span></span><span></span></div>'}
       <div class="str sto"><span>${esc(dmon(rows.length?rows[rows.length-1].ts:openTs))}</span><span>Closing balance</span><span></span><span class="bl">${n2(closing)}</span></div></div></div>
-    <div class="cact"><button class="btn" id="aPdf">Download PDF</button><button class="btn" id="aShare">Share</button></div></div>
-  <div class="mgrid"><button id="aFix">✎ Fix balance</button><button id="aIn">＋ Money in</button></div>`;
+    <div class="cact" style="margin-top:10px"><button class="btn" id="aPdf">Download PDF</button><button class="btn" id="aShare">Share</button></div></div>
+  <div class="mgrid" style="margin-bottom:4px"><button id="aFix">✎ Fix balance</button><button id="aIn">＋ Money in</button></div>`;
   $('#aBack').onclick=()=>{MV.acc=null;render();scrollTo(0,0)};
   $('#aEdit').onclick=()=>accSheet(a);
   $('#aFix').onclick=()=>fixSheet(a);$('#aIn').onclick=()=>moveSheet('in',a.id);
   document.querySelectorAll('[data-am]').forEach(b=>b.onclick=()=>{if(b.disabled)return;MV.month=b.dataset.am;render()});
   const sc=$('#stsc');if(sc){sc.addEventListener('click',ev=>{const r=ev.target.closest('[data-eid]');if(r){const e=S.expenses.find(x=>x.id===r.dataset.eid);if(e)addSheet(e);return}
     const mv=ev.target.closest('[data-mid]');if(mv){const m=S.moves.find(x=>x.id===mv.dataset.mid);if(m)moveEditSheet(m)}});
-    const top=sc.getBoundingClientRect().top;sc.style.maxHeight=Math.max(240,Math.round(innerHeight-top-190))+'px';if(MV.month===cur)sc.scrollTop=sc.scrollHeight}
+    if(MV.month===cur)sc.scrollTop=sc.scrollHeight}
   const doc=()=>accDoc(a,{opening,closing,openTs,rows,out,inn,mon:new Date(y,mm-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'})});
   $('#aPdf').onclick=()=>{const html=doc();const fn=(accLabel(a)+'-statement-'+MV.month).replace(/[^A-Za-z0-9-]+/g,'-');
     if(APP&&APP.openFile){APP.openFile(fn+'.html',b64of(html),'text/html');toast('Opening – choose Print → Save as PDF');return}
@@ -980,7 +990,7 @@ function statementFor(c,m){
   const opening=before.length?before[before.length-1].bal:L.open;
   const openTs=before.length||L.openTs<m0?m0:L.openTs;
   const closing=inM.length?inM[inM.length-1].bal:opening;
-  const fares=-inM.filter(r=>r.amt<0).reduce((x,r)=>x+r.amt,0),tops=inM.filter(r=>r.amt>0).reduce((x,r)=>x+r.amt,0);
+  const fares=Math.abs(inM.filter(r=>r.amt<0).reduce((x,r)=>x+r.amt,0)),tops=inM.filter(r=>r.amt>0).reduce((x,r)=>x+r.amt,0);
   return{L,m,rows:inM,opening,openTs,closing,closeTs:inM.length?inM[inM.length-1].ts:openTs,fares,tops};
 }
 const n2=v=>(Math.round(v*100)/100).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -1176,11 +1186,11 @@ function vCard(){
   ${cards.length?busy:''}
   ${cards.length?`<div class="cstrip" id="cStrip">${cards.map(c=>miniCard(c,c.id===selCard)).join('')}</div>
   ${cards.length>1?`<div class="cdots" aria-hidden="true">${cards.map(c=>`<i${c.id===selCard?' class="on"':''}></i>`).join('')}</div>`:''}
-  <div class="cact"><button class="btn" id="refB"${can?'':' disabled'}><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Refresh</button>
+  <div class="scr" id="cScr"><div class="cact"><button class="btn" id="refB"${can?'':' disabled'}><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Refresh</button>
     <button class="btn" data-top="${esc(selCard)}"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>I topped up</button></div>
   ${APP&&APP.openSbi?`<button class="btn" id="sbiB" style="height:44px;font-size:14px;margin-top:10px">Top up on SBI ›</button>`:''}
   <div id="cDetail">${cardDetail(cur)}</div>
-  <div class="small muted" style="text-align:center;margin-top:10px">Read only. Kharcha can never change your balance.</div>`:
+  <div class="small muted" style="text-align:center;margin-top:10px">Read only. Kharcha can never change your balance.</div></div>`:
   (can?`<div class="tapbox ${cardsBusy?'live':''}" id="tapBox" style="margin-top:14px">
     <div class="wave"><svg viewBox="0 0 24 24"><path d="M6 8a8 8 0 0 1 0 8M10 5a13 13 0 0 1 0 14M14 2a18 18 0 0 1 0 20"/><circle cx="3" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg></div>
     <b>${cardsBusy?'Hold the card against your phone…':'Tap card to read'}</b>
