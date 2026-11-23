@@ -432,6 +432,7 @@ function addSheet(e){
   ${S.accounts.length?`<div class="lab">Paid from</div><div class="pick" id="fAcc">${S.accounts.map(a=>`<button type="button" data-a="${a.id}" class="${a.id===(x.acc&&accById(x.acc)?x.acc:accOf(x))?'on':''}">${a.type==='cash'?'💵':'🏦'} ${esc(accLabel(a))}</button>`).join('')}</div>`:''}
   <div class="lab">Category</div>
   ${catGrid(x.cat,'fCats')}
+  <div class="chips" id="fMeal" style="margin-top:10px;${x.cat==='food'?'':'display:none'}">${[['🌅','Breakfast'],['☀️','Lunch'],['🍪','Snacks'],['🌙','Dinner']].map(([i,w])=>`<button type="button" data-meal="${w}" class="${(x.note||'').toLowerCase()===w.toLowerCase()?'on':''}">${i} ${w}</button>`).join('')}</div>
   <div class="lab">Details</div>
   <input id="fPayee" placeholder="Paid to" value="${esc(x.payee)}" style="margin-bottom:8px">
   ${x.id&&isUpi(x.payee)?`<button type="button" class="lnk" id="fName" style="margin:0 2px 10px">${S.names[key(x.payee)]?'Rename this payee ('+esc(S.names[key(x.payee)])+')':'Optional: name this payee (for shops you pay often)'} ›</button>`:''}
@@ -440,7 +441,11 @@ function addSheet(e){
   <button class="btn pri" id="fSave">Save</button>
   ${x.id?'<button class="btn danger" id="fDel">Delete expense</button>':''}`,sh=>{
     sh.querySelector('#fNote').value=x.note||'';
-    const cats=sh.querySelector('#fCats');bindPick(cats,'data-c');
+    const meal=sh.querySelector('#fMeal');
+    const cats=sh.querySelector('#fCats');bindPick(cats,'data-c',c=>{meal.style.display=c==='food'?'':'none'});
+    meal.addEventListener('click',ev=>{const b=ev.target.closest('[data-meal]');if(!b)return;const n=sh.querySelector('#fNote');
+      const on=n.value.trim().toLowerCase()!==b.dataset.meal.toLowerCase();n.value=on?b.dataset.meal:'';
+      meal.querySelectorAll('button').forEach(z=>z.classList.toggle('on',on&&z===b))});
     const fa=sh.querySelector('#fAcc');
     bindPick(sh.querySelector('#fMode'),'data-m',m=>{if(!fa)return;const cur=accById(picked(fa,'data-a'));let want=null;
       if(m==='Cash')want=cashAcc();else if((m==='UPI'||m==='Bank')&&(!cur||cur.type==='cash'))want=defBank();

@@ -218,6 +218,33 @@ public class Popup {
         glp.topMargin = dp(c, 12);
         card.addView(grid, glp);
 
+        final EditText note = new EditText(c);
+        /* Breakfast / Lunch / Snacks / Dinner: one tap fills the note (shown for Food only) */
+        final LinearLayout meals = new LinearLayout(c);
+        final String[][] MEALS = {{"🌅", "Breakfast"}, {"☀️", "Lunch"}, {"🍪", "Snacks"}, {"🌙", "Dinner"}};
+        final TextView[] mealBtns = new TextView[MEALS.length];
+        for (int m = 0; m < MEALS.length; m++) {
+            final String word = MEALS[m][1];
+            TextView mb = label(c, MEALS[m][0] + " " + word, 12.5f, INK, true);
+            mb.setGravity(Gravity.CENTER);
+            mb.setSingleLine(true);
+            mb.setPadding(dp(c, 2), dp(c, 9), dp(c, 2), dp(c, 9));
+            mb.setBackground(box(c, FIELD, 0, 12, 0));
+            mealBtns[m] = mb;
+            mb.setOnClickListener(v -> {
+                boolean on = !word.equalsIgnoreCase(note.getText().toString().trim());
+                note.setText(on ? word : "");
+                note.setSelection(note.getText().length());
+                for (TextView x : mealBtns) {
+                    boolean me = on && x == mb;
+                    x.setBackground(box(c, me ? ACCENT : FIELD, 0, 12, 0));
+                    x.setTextColor(me ? ONACCENT : INK);
+                }
+            });
+            LinearLayout.LayoutParams mlp2 = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+            if (m > 0) mlp2.leftMargin = dp(c, 6);
+            meals.addView(mb, mlp2);
+        }
         final TextView[] chips = new TextView[cats.length()];
         final TextView hint = label(c, "", 11.5f, OKINK, false);
         for (int i = 0; i < cats.length(); i++) {
@@ -240,6 +267,7 @@ public class Popup {
                 sel[0] = id;
                 hint.setText("");
                 for (TextView x : chips) if (x != null) paint(c, x, id.equals(x.getTag()));
+                meals.setVisibility("food".equals(id) ? View.VISIBLE : View.GONE);
             });
             paint(c, t, id.equals(sel[0]));
             grid.addView(t, lp);
@@ -257,7 +285,11 @@ public class Popup {
             card.addView(hint, hlp);
         }
 
-        EditText note = new EditText(c);
+        LinearLayout.LayoutParams mealLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        mealLp.topMargin = dp(c, 9);
+        card.addView(meals, mealLp);
+        meals.setVisibility("food".equals(sel[0]) ? View.VISIBLE : View.GONE);
+
         note.setHint("Add a note (optional)");
         note.setTextSize(14);
         note.setSingleLine(true);
