@@ -294,6 +294,29 @@ public class MainActivity extends Activity {
             KharchaWidget.refresh(MainActivity.this);
         }
 
+        /** the widget's voice pop-up, started from the app's Speak button */
+        @JavascriptInterface
+        public void voiceCash() {
+            runOnUiThread(() -> startActivity(new Intent(MainActivity.this, CashActivity.class).putExtra("voice", true)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)));
+        }
+
+        /** low-balance reminder */
+        @JavascriptInterface
+        public void notify(String title, String text) {
+            android.app.NotificationManager nm = getSystemService(android.app.NotificationManager.class);
+            if (nm == null) return;
+            nm.createNotificationChannel(new android.app.NotificationChannel("low", "Low balance reminders",
+                    android.app.NotificationManager.IMPORTANCE_HIGH));
+            Intent i = new Intent(MainActivity.this, MainActivity.class).putExtra("a", "money")
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            android.app.PendingIntent pi = android.app.PendingIntent.getActivity(MainActivity.this, 21, i,
+                    android.app.PendingIntent.FLAG_IMMUTABLE | android.app.PendingIntent.FLAG_UPDATE_CURRENT);
+            nm.notify(title.hashCode(), new android.app.Notification.Builder(MainActivity.this, "low")
+                    .setSmallIcon(android.R.drawable.stat_sys_warning)
+                    .setContentTitle(title).setContentText(text).setAutoCancel(true).setContentIntent(pi).build());
+        }
+
         @JavascriptInterface
         public boolean hasNfc() {
             NfcAdapter a = NfcAdapter.getDefaultAdapter(MainActivity.this);

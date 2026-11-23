@@ -34,13 +34,13 @@ public class Popup {
     static void theme(Context c) {
         dark = (c.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
         if (dark) {
-            CARD = 0xFF141A18; INK = 0xFFEEF3F1; MUT = 0xFF9AA6A1; FAINT = 0xFF7D8884;
-            SOFT = 0xFF1A211F; ACCENT = 0xFF5EEAB4; ONACCENT = 0xFF0E1513; REDBG = 0xFF3A1A17; RED = 0xFFFF8B7E;
-            OKINK = 0xFF6FD9C4; FIELD = 0xFF1A211F; MARK = 0xFF22302B;
+            CARD = 0xFF131C2E; INK = 0xFFEEF2FA; MUT = 0xFF9AA7BF; FAINT = 0xFF7887A3;
+            SOFT = 0xFF1A2438; ACCENT = 0xFF5B8CFF; ONACCENT = 0xFF0B1220; REDBG = 0xFF3A1A1A; RED = 0xFFFF8B7E;
+            OKINK = 0xFF8FB0FF; FIELD = 0xFF1A2438; MARK = 0xFF1C2A48;
         } else {
-            CARD = 0xFFFFFFFF; INK = 0xFF0E1513; MUT = 0xFF5B6461; FAINT = 0xFF8A9490;
-            SOFT = 0xFFF6F8F7; ACCENT = 0xFF0E1513; ONACCENT = 0xFFFFFFFF; REDBG = 0xFFFDECEA; RED = 0xFFB42318;
-            OKINK = 0xFF0B6B47; FIELD = 0xFFF3F5F4; MARK = 0xFF0E1513;
+            CARD = 0xFFFFFFFF; INK = 0xFF0F1B33; MUT = 0xFF5B6B85; FAINT = 0xFF8A97AD;
+            SOFT = 0xFFEEF3FB; ACCENT = 0xFF1E5EFF; ONACCENT = 0xFFFFFFFF; REDBG = 0xFFFDECEC; RED = 0xFFC62828;
+            OKINK = 0xFF1E5EFF; FIELD = 0xFFEEF3FB; MARK = 0xFF1E5EFF;
         }
     }
 
@@ -146,7 +146,7 @@ public class Popup {
         /* header: brand chip + "Not an expense" */
         LinearLayout head = new LinearLayout(c);
         head.setGravity(Gravity.CENTER_VERTICAL);
-        TextView mark = label(c, "₹", 12, 0xFF5EEAB4, true);
+        TextView mark = label(c, "₹", 12, 0xFFFFFFFF, true);
         mark.setGravity(Gravity.CENTER);
         mark.setBackground(box(c, MARK, 0, 7, 0));
         LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(dp(c, 22), dp(c, 22));

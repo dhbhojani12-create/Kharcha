@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="w_bg">#141A18</color>
-    <color name="w_ink">#EEF3F1</color>
-    <color name="w_mut">#9AA6A1</color>
-    <color name="w_soft">#1F2724</color>
-    <color name="w_bal">#5EEAB4</color>
-    <color name="w_btn">#5EEAB4</color>
-    <color name="w_on_btn">#0E1513</color>
-    <color name="w_t1a">#0D5E57</color>
-    <color name="w_t1b">#127A6C</color>
-    <color name="w_t2a">#1A2F6B</color>
-    <color name="w_t2b">#2848A3</color>
+    <color name="w_bg">#131C2E</color>
+    <color name="w_ink">#EEF2FA</color>
+    <color name="w_mut">#9AA7BF</color>
+    <color name="w_soft">#1A2438</color>
+    <color name="w_bal">#8FB0FF</color>
+    <color name="w_btn">#5B8CFF</color>
+    <color name="w_on_btn">#0B1220</color>
+    <color name="w_t1a">#1A3A8F</color>
+    <color name="w_t1b">#2450C2</color>
+    <color name="w_t2a">#13265E</color>
+    <color name="w_t2b">#1C3A8A</color>
     <color name="w_tile_ink">#EEF3F1</color>
     <color name="w_tile_mut">#B3EEF3F1</color>
     <color name="w_low_bg">#3A1A17</color>
     <color name="w_low">#FF8B7E</color>
-    <color name="w_mic_bg">#1F3A35</color>
-    <color name="w_sep">#2A3330</color>
+    <color name="w_mic_bg">#1C2A48</color>
+    <color name="w_sep">#27344D</color>
 </resources>
