@@ -331,18 +331,19 @@ public class Popup {
 
     static final String[][] QUICK_FOOD = {{"🌅", "Breakfast"}, {"☀️", "Lunch"}, {"🍪", "Snacks"}, {"🌙", "Dinner"}};
     static final String[][] QUICK_TRAVEL = {{"🛺", "Auto"}, {"🚌", "Bus"}, {"🚕", "Cab"}, {"🚆", "Train"}};
+    static final String[][] QUICK_BILLS = {{"⚡", "Electricity"}, {"🔥", "Gas"}, {"📱", "Recharge"}, {"🌐", "Wi-Fi"}};
 
     /** fill the one-tap row for this category (hidden for categories without one) */
     static void fillQuick(Context c, LinearLayout row, EditText note, String cat) {
         row.removeAllViews();
-        String[][] set = "food".equals(cat) ? QUICK_FOOD : "travel".equals(cat) ? QUICK_TRAVEL : null;
+        String[][] set = "food".equals(cat) ? QUICK_FOOD : "travel".equals(cat) ? QUICK_TRAVEL : "bills".equals(cat) ? QUICK_BILLS : null;
         row.setVisibility(set == null ? View.GONE : View.VISIBLE);
         if (set == null) return;
         final TextView[] btns = new TextView[set.length];
         String cur = note.getText().toString().trim();
         for (int m = 0; m < set.length; m++) {
             final String word = set[m][1];
-            final TextView mb = label(c, set[m][0] + " " + word, 12.5f, INK, true);
+            final TextView mb = label(c, set[m][0] + " " + word, set == QUICK_BILLS ? 11.5f : 12.5f, INK, true);
             mb.setGravity(Gravity.CENTER);
             mb.setSingleLine(true);
             mb.setPadding(dp(c, 2), dp(c, 9), dp(c, 2), dp(c, 9));
