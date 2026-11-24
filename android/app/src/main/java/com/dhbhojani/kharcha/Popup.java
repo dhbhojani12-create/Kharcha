@@ -329,7 +329,7 @@ public class Popup {
         showing = root;
     }
 
-    static final String[][] QUICK_FOOD = {{"🌅", "Breakfast"}, {"☀️", "Lunch"}, {"🍪", "Snacks"}, {"🌙", "Dinner"}};
+    static final String[][] QUICK_FOOD = {{"🌅", "Breakfast"}, {"☀️", "Lunch"}, {"🍪", "Snacks"}, {"🧃", "Juice"}, {"🌙", "Dinner"}};
     static final String[][] QUICK_TRAVEL = {{"🛺", "Auto"}, {"🚌", "Bus"}, {"🚕", "Cab"}, {"🚆", "Train"}};
     static final String[][] QUICK_BILLS = {{"⚡", "Electricity"}, {"🔥", "Gas"}, {"📱", "Recharge"}, {"🌐", "Wi-Fi"}};
 
@@ -343,10 +343,11 @@ public class Popup {
         String cur = note.getText().toString().trim();
         for (int m = 0; m < set.length; m++) {
             final String word = set[m][1];
-            final TextView mb = label(c, set[m][0] + " " + word, set == QUICK_BILLS ? 11.5f : 12.5f, INK, true);
+            boolean stack = set.length > 4;
+            final TextView mb = label(c, set[m][0] + (stack ? "\n" : " ") + word, stack ? 11.5f : set == QUICK_BILLS ? 11.5f : 12.5f, INK, true);
             mb.setGravity(Gravity.CENTER);
-            mb.setSingleLine(true);
-            mb.setPadding(dp(c, 2), dp(c, 9), dp(c, 2), dp(c, 9));
+            if (stack) mb.setMaxLines(2); else mb.setSingleLine(true);
+            mb.setPadding(dp(c, 1), dp(c, stack ? 6 : 9), dp(c, 1), dp(c, stack ? 6 : 9));
             boolean on0 = word.equalsIgnoreCase(cur);
             mb.setBackground(box(c, on0 ? ACCENT : FIELD, 0, 12, 0));
             mb.setTextColor(on0 ? ONACCENT : INK);
@@ -362,7 +363,7 @@ public class Popup {
                 }
             });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-            if (m > 0) lp.leftMargin = dp(c, 6);
+            if (m > 0) lp.leftMargin = dp(c, set.length > 4 ? 5 : 6);
             row.addView(mb, lp);
         }
     }

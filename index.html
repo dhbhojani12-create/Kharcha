@@ -424,7 +424,7 @@ $('#ov').addEventListener('click',e=>{if(e.target.id==='ov')closeSheet()});
 
 /* ---------- add / edit ---------- */
 /* one-tap note buttons: meals for Food, ride type for Travel */
-const QUICK={food:[['🌅','Breakfast'],['☀️','Lunch'],['🍪','Snacks'],['🌙','Dinner']],travel:[['🛺','Auto'],['🚌','Bus'],['🚕','Cab'],['🚆','Train']],bills:[['⚡','Electricity'],['🔥','Gas'],['📱','Recharge'],['🌐','Wi-Fi']]};
+const QUICK={food:[['🌅','Breakfast'],['☀️','Lunch'],['🍪','Snacks'],['🧃','Juice'],['🌙','Dinner']],travel:[['🛺','Auto'],['🚌','Bus'],['🚕','Cab'],['🚆','Train']],bills:[['⚡','Electricity'],['🔥','Gas'],['📱','Recharge'],['🌐','Wi-Fi']]};
 const quickBtns=(c,note)=>(QUICK[c]||[]).map(([i,w])=>`<button type="button" data-meal="${w}" class="${(note||'').trim().toLowerCase()===w.toLowerCase()?'on':''}">${i} ${w}</button>`).join('');
 function addSheet(e){
   const x=Object.assign({amt:'',cat:'',mode:'UPI',payee:'',note:'',ts:Date.now()},e||{});
