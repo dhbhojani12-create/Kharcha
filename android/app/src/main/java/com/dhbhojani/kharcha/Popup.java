@@ -219,32 +219,8 @@ public class Popup {
         card.addView(grid, glp);
 
         final EditText note = new EditText(c);
-        /* Breakfast / Lunch / Snacks / Dinner: one tap fills the note (shown for Food only) */
+        /* one-tap note buttons: meals for Food, Auto/Bus/Cab/Train for Travel */
         final LinearLayout meals = new LinearLayout(c);
-        final String[][] MEALS = {{"🌅", "Breakfast"}, {"☀️", "Lunch"}, {"🍪", "Snacks"}, {"🌙", "Dinner"}};
-        final TextView[] mealBtns = new TextView[MEALS.length];
-        for (int m = 0; m < MEALS.length; m++) {
-            final String word = MEALS[m][1];
-            TextView mb = label(c, MEALS[m][0] + " " + word, 12.5f, INK, true);
-            mb.setGravity(Gravity.CENTER);
-            mb.setSingleLine(true);
-            mb.setPadding(dp(c, 2), dp(c, 9), dp(c, 2), dp(c, 9));
-            mb.setBackground(box(c, FIELD, 0, 12, 0));
-            mealBtns[m] = mb;
-            mb.setOnClickListener(v -> {
-                boolean on = !word.equalsIgnoreCase(note.getText().toString().trim());
-                note.setText(on ? word : "");
-                note.setSelection(note.getText().length());
-                for (TextView x : mealBtns) {
-                    boolean me = on && x == mb;
-                    x.setBackground(box(c, me ? ACCENT : FIELD, 0, 12, 0));
-                    x.setTextColor(me ? ONACCENT : INK);
-                }
-            });
-            LinearLayout.LayoutParams mlp2 = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-            if (m > 0) mlp2.leftMargin = dp(c, 6);
-            meals.addView(mb, mlp2);
-        }
         final TextView[] chips = new TextView[cats.length()];
         final TextView hint = label(c, "", 11.5f, OKINK, false);
         for (int i = 0; i < cats.length(); i++) {
@@ -267,7 +243,7 @@ public class Popup {
                 sel[0] = id;
                 hint.setText("");
                 for (TextView x : chips) if (x != null) paint(c, x, id.equals(x.getTag()));
-                meals.setVisibility("food".equals(id) ? View.VISIBLE : View.GONE);
+                fillQuick(c, meals, note, id);
             });
             paint(c, t, id.equals(sel[0]));
             grid.addView(t, lp);
@@ -288,7 +264,7 @@ public class Popup {
         LinearLayout.LayoutParams mealLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         mealLp.topMargin = dp(c, 9);
         card.addView(meals, mealLp);
-        meals.setVisibility("food".equals(sel[0]) ? View.VISIBLE : View.GONE);
+        fillQuick(c, meals, note, sel[0]);
 
         note.setHint("Add a note (optional)");
         note.setTextSize(14);
@@ -351,6 +327,43 @@ public class Popup {
 
         wm.addView(root, lp);
         showing = root;
+    }
+
+    static final String[][] QUICK_FOOD = {{"🌅", "Breakfast"}, {"☀️", "Lunch"}, {"🍪", "Snacks"}, {"🌙", "Dinner"}};
+    static final String[][] QUICK_TRAVEL = {{"🛺", "Auto"}, {"🚌", "Bus"}, {"🚕", "Cab"}, {"🚆", "Train"}};
+
+    /** fill the one-tap row for this category (hidden for categories without one) */
+    static void fillQuick(Context c, LinearLayout row, EditText note, String cat) {
+        row.removeAllViews();
+        String[][] set = "food".equals(cat) ? QUICK_FOOD : "travel".equals(cat) ? QUICK_TRAVEL : null;
+        row.setVisibility(set == null ? View.GONE : View.VISIBLE);
+        if (set == null) return;
+        final TextView[] btns = new TextView[set.length];
+        String cur = note.getText().toString().trim();
+        for (int m = 0; m < set.length; m++) {
+            final String word = set[m][1];
+            final TextView mb = label(c, set[m][0] + " " + word, 12.5f, INK, true);
+            mb.setGravity(Gravity.CENTER);
+            mb.setSingleLine(true);
+            mb.setPadding(dp(c, 2), dp(c, 9), dp(c, 2), dp(c, 9));
+            boolean on0 = word.equalsIgnoreCase(cur);
+            mb.setBackground(box(c, on0 ? ACCENT : FIELD, 0, 12, 0));
+            mb.setTextColor(on0 ? ONACCENT : INK);
+            btns[m] = mb;
+            mb.setOnClickListener(v -> {
+                boolean on = !word.equalsIgnoreCase(note.getText().toString().trim());
+                note.setText(on ? word : "");
+                note.setSelection(note.getText().length());
+                for (TextView x : btns) {
+                    boolean me = on && x == mb;
+                    x.setBackground(box(c, me ? ACCENT : FIELD, 0, 12, 0));
+                    x.setTextColor(me ? ONACCENT : INK);
+                }
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+            if (m > 0) lp.leftMargin = dp(c, 6);
+            row.addView(mb, lp);
+        }
     }
 
     static boolean setAmount(double a) {
